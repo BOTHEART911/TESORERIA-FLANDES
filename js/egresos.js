@@ -21,6 +21,13 @@
      WhatsApp) al contratista. Los egresos hechos con la app anterior no
      tienen los pagos guardados: se escriben ahí mismo, como antes.
 
+   8.1 · EMBARGOS: si el contrato tiene embargo configurado (tarjeta del
+     contratista), la cuenta llega con la cuota ya descontada y un CHECK.
+     Desmarcado, el egreso sale sin descuento y se aconseja levantar el
+     embargo. En el comprobante: banco (crédito), 138490002 (crédito,
+     el embargo) y el beneficiario en UNA línea (débito del neto).
+   8.1 · FIRMAS: Elaboró = quien crea; Modificó = quien rehace.
+
    UN SOLO VIAJE: 'bandeja' trae las dos listas, las fuentes y las reglas.
    Crear y pagar devuelven la bandeja nueva: no hay una segunda lectura.
    ============================================================ */
@@ -119,18 +126,25 @@
     if (SEL[k]) return SEL[k];
     var d = c.datos || null;
     var sug = c.sugerida || {};
-    var s = { numero: '', fecha: hoyTxt(), pagos: [{ valor: c.neto || 0, fuente: sug.f1 || '' }], motivo: { tipo: '', texto: '' } };
+    var s = { numero: '', fecha: hoyTxt(), pagos: [{ valor: c.neto || 0, fuente: sug.f1 || '' }], motivo: { tipo: '', texto: '' },
+              embargo: { aplicar: !!(c.embargo && c.embargo.cuota > 0) } };
     if (sug.f2 && fuenteDe(sug.f2)) s.pagos.push({ valor: 0, fuente: sug.f2 });
-    if (s.pagos.length === 2) s.pagos[0].valor = c.neto || 0;
+    s.pagos[0].valor = Math.max(0, (c.neto || 0) - embargoDe(c, s));
     if (rehacer && d) {
       s.numero = String(d.numero || '').slice(4).replace(/^0+/, '');
       s.fecha = d.fecha || s.fecha;
       s.pagos = (d.pagos || []).map(function (p) { return { valor: p.valor, fuente: p.fuente }; });
       if (d.motivo) s.motivo = { tipo: d.motivo.tipo || '', texto: d.motivo.texto || '' };
+      if (d.embargo) s.embargo.aplicar = d.embargo.valor > 0;
     }
     if (!fuenteDe(s.pagos[0].fuente)) s.pagos[0].fuente = '';
     SEL[k] = s;
     return s;
+  }
+
+  /** 8.1 · La cuota del embargo que se descuenta en este egreso (0 si no hay o se desmarcó). */
+  function embargoDe(c, s) {
+    return (c && c.embargo && c.embargo.cuota > 0 && s && s.embargo && s.embargo.aplicar) ? Math.round(c.embargo.cuota) : 0;
   }
 
   /** Lo que el CORE va a exigir, dicho antes de viajar. */
@@ -143,12 +157,13 @@
       else if (!fuenteDe(p.fuente)) errores.push('La fuente del pago ' + (i + 1) + ' ya no está en la configuración.');
       if (!(v > 0) && !(p.fuente && ceroOk(p.fuente))) errores.push('Escribe el VALOR PAGADO ' + (i + 1) + '.');
     });
-    var dif = Math.round((c.neto || 0) - total);
+    var emb = legado ? 0 : embargoDe(c, s);
+    var dif = Math.round((c.neto || 0) - emb - total);
     var fuenteNeto = legado ? 'MOTOR' : c.netoFuente;
     if (dif < 0 && fuenteNeto === 'ORDEN') errores.push('No se puede girar más que la orden de pago (' + pesos(c.neto) + ').');
     if (dif !== 0 && !s.motivo.tipo) errores.push('Lo girado no es el neto de la orden: escoge el motivo de la diferencia.');
     if (dif !== 0 && s.motivo.tipo === 'OTRO' && String(s.motivo.texto || '').trim().length < 5) errores.push('Explica el motivo de la diferencia.');
-    return { total: total, dif: dif, errores: errores };
+    return { total: total, dif: dif, embargo: emb, errores: errores };
   }
 
   /* ══════════════ filtro de la lista de pendientes ══════════════ */
@@ -160,6 +175,7 @@
     if (!sin.que && F.que === 'resto' && c.primera) return false;
     if (!sin.que && F.que === 'cesion' && !c.cedido) return false;
     if (!sin.que && F.que === 'motor' && c.netoFuente !== 'MOTOR') return false;
+    if (!sin.que && F.que === 'embargo' && !(c.embargo && c.embargo.cuota > 0)) return false;
     if (!sin.sec && F.sec && c.sec !== F.sec) return false;
     var q = norm(F.busca);
     if (q) {
@@ -186,6 +202,7 @@
     if (c.cedido) m.push('<span class="ct-marca op-marca--rp">' + K.icono('llave', 11) + ' CEDIDO' + (c.rpCesionUsado ? ' · RP CESIÓN' : '') + '</span>');
     if (c.netoFuente === 'MOTOR') m.push('<span class="ct-marca tg-marca--motor" title="Orden hecha con la app anterior: el neto lo calcula el motor de Contabilidad">' + K.icono('info', 11) + ' ORDEN APP ANTERIOR</span>');
     if (c.ultimo) m.push('<span class="ct-marca">ÚLTIMA CUENTA</span>');
+    if (c.embargo && c.embargo.cuota > 0) m.push('<span class="ct-marca tg-marca--emb">' + K.icono('candado', 11) + ' EMBARGO · ' + K.esc(pesos(c.embargo.cuota)) + '</span>');
     return m.join('');
   }
 
@@ -230,7 +247,8 @@
       pQue = K.piezas.pastillas.montar(zQue, {
         etiqueta: 'Qué cuentas',
         opciones: [{ valor: '', texto: 'Todas' }, { valor: 'primera', texto: 'Primeras del tramo', tono: 'aviso' }, { valor: 'resto', texto: 'Las demás' },
-                   { valor: 'cesion', texto: 'Contratos cedidos' }, { valor: 'motor', texto: 'Orden de la app anterior' }],
+                   { valor: 'cesion', texto: 'Contratos cedidos' }, { valor: 'motor', texto: 'Orden de la app anterior' },
+                   { valor: 'embargo', texto: 'Con embargo', tono: 'aviso' }],
         valor: F.que, alCambiar: function (v) { F.que = v; guardarFiltro(); pintar(); }
       });
       pSec = K.piezas.pastillas.montar(zSec, { etiqueta: 'Secretaría', opciones: [{ valor: '', texto: 'Todas las secretarías' }], valor: F.sec,
@@ -240,7 +258,8 @@
     function repintarPastillas() {
       var bQ = pendientes().filter(function (c) { return !c.error && pasa(c, { que: true }); });
       pQue.conteos({ '': bQ.length, primera: bQ.filter(function (c) { return c.primera; }).length, resto: bQ.filter(function (c) { return !c.primera; }).length,
-        cesion: bQ.filter(function (c) { return c.cedido; }).length, motor: bQ.filter(function (c) { return c.netoFuente === 'MOTOR'; }).length });
+        cesion: bQ.filter(function (c) { return c.cedido; }).length, motor: bQ.filter(function (c) { return c.netoFuente === 'MOTOR'; }).length,
+        embargo: bQ.filter(function (c) { return c.embargo && c.embargo.cuota > 0; }).length });
       O().marcar(zQue, F.que);
       var bS = pendientes().filter(function (c) { return !c.error && pasa(c, { sec: true }); });
       var m = {};
@@ -294,8 +313,10 @@
       '<div><dt>Cobra</dt><dd>' + K.esc(pesos(c.cobro)) + '</dd></div>' +
       '<div><dt>Banco del contratista</dt><dd>' + K.esc(c.banco || '—') + (c.numeroCuenta ? ' <small>' + K.esc(c.tipoCuenta || '') + ' ' + K.esc(c.numeroCuenta) + '</small>' : '') + '</dd></div>' +
       '</dl>'));
-    t.appendChild(K.nodo('<div class="op-neto"><span>Descuentos <b>' + K.esc(pesos(c.retenido)) + '</b></span>' +
-      '<span class="op-neto__v">A girar <b>' + K.esc(pesos(c.neto)) + '</b></span></div>'));
+    var cuota = c.embargo && c.embargo.cuota > 0 ? c.embargo.cuota : 0;
+    t.appendChild(K.nodo('<div class="op-neto"><span>Descuentos <b>' + K.esc(pesos(c.retenido)) + '</b>' +
+      (cuota ? ' · Embargo <b>' + K.esc(pesos(cuota)) + '</b>' : '') + '</span>' +
+      '<span class="op-neto__v">A girar <b>' + K.esc(pesos((c.neto || 0) - cuota)) + '</b></span></div>'));
     t.appendChild(K.nodo('<div class="ct-t__marcas">' + marcasDe(c) + '</div>'));
     var a = K.nodo('<div class="ct-acc"></div>');
     if (C.puede('egresosPendientes')) {
@@ -531,6 +552,8 @@
     var iF = fF.querySelector('input');
     iF.setAttribute('data-desde', String(vigencia() - 1));
     form.appendChild(fF);
+    var zEmb = K.nodo('<div></div>');
+    form.appendChild(zEmb);
     var zPagos = K.nodo('<div class="tg-pagos"></div>');
     form.appendChild(zPagos);
     var zTotal = K.nodo('<div class="kit-tarjeta op-total tg-total"></div>');
@@ -544,12 +567,48 @@
     var fin = K.nodo('<section class="kit-tarjeta op-fin"></section>');
     zona.appendChild(fin);
 
+    /* 8.1 · el embargo: llega marcado; desmarcarlo lo levanta SOLO en este egreso */
+    function pintarEmbargo() {
+      zEmb.innerHTML = '';
+      var e = c.embargo;
+      if (!e || !(e.cuota > 0)) return;
+      var caja = K.nodo('<div class="tg-emb' + (s.embargo.aplicar ? '' : ' tg-emb--off') + '"></div>');
+      var ch = K.nodo('<label class="op-check"><input type="checkbox"><span><b>Descontar embargo ' + K.esc(pesos(e.cuota)) + '</b>' +
+        '<small>Va a ' + K.esc((e.cuenta && e.cuenta.codigo) || '138490002') + ' ' + K.esc((e.cuenta && e.cuenta.nombre) || 'RESPONSABILIDADES CONTRATISTAS') +
+        (e.tope ? ' · tope ' + K.esc(pesos(e.tope)) + ', van ' + K.esc(pesos(e.descontado)) + ', faltan ' + K.esc(pesos(e.restante)) : ' · sin tope') + '</small></span></label>');
+      var inp = ch.querySelector('input');
+      inp.checked = !!s.embargo.aplicar;
+      inp.addEventListener('change', function () {
+        var antes = embargoDe(c, s);
+        s.embargo.aplicar = inp.checked;
+        var ahora = embargoDe(c, s);
+        /* con un solo pago, el valor se ajusta solo */
+        if (s.pagos.length === 1) s.pagos[0].valor = Math.max(0, (Number(s.pagos[0].valor) || 0) + antes - ahora);
+        pintarEmbargo();
+        refrescar();
+      });
+      caja.appendChild(ch);
+      if (e.nota) caja.appendChild(K.nodo('<p class="op-nota">' + K.icono('info', 13) + ' ' + K.esc(e.nota) + '</p>'));
+      if (!s.embargo.aplicar) {
+        var av = K.nodo('<p class="op-nota op-nota--aviso">' + K.icono('aviso', 14) + '<span>Este egreso sale <b>sin</b> el descuento. Si el embargo ya no aplica, ' +
+          '<b>levántalo</b> en la tarjeta del contratista para que no vuelva a salir en las próximas cuentas.</span></p>');
+        caja.appendChild(av);
+        if (C.puede('embargos')) {
+          var ir = K.nodo('<button type="button" class="kit-btn kit-btn--plano op-mini">' + K.icono('candado', 14) + ' Levantar el embargo</button>');
+          ir.addEventListener('click', function () { C.irA('contratista/' + encodeURIComponent(c.id)); });
+          caja.appendChild(ir);
+        }
+      }
+      zEmb.appendChild(caja);
+    }
+
     function refrescar(soloCifras) {
       if (!soloCifras) formularioPagos(c, s, zPagos, false, refrescar);
       var r = revisar(c, s, false);
       zTotal.innerHTML = '';
       /* K.nodo devuelve UN elemento: las filas van dentro de un envoltorio */
       zTotal.appendChild(K.nodo('<div class="tg-total__filas"><div class="op-total__fila"><span>Neto de la orden</span><b>' + K.esc(pesos(c.neto)) + '</b></div>' +
+        (r.embargo ? '<div class="op-total__fila"><span>Embargo</span><b>− ' + K.esc(pesos(r.embargo)) + '</b></div>' : '') +
         '<div class="op-total__fila op-total__neto"><span>Total girado</span><b>' + K.esc(pesos(r.total)) + '</b></div>' +
         (r.dif ? '<div class="op-total__fila tg-dif"><span>Diferencia</span><b>' + K.esc(pesos(r.dif)) + '</b></div>' : '') + '</div>'));
       if (!soloCifras || (r.dif !== 0) !== !!zMot.firstChild) pintarMotivo(c, s, zMot, r);
@@ -559,13 +618,18 @@
     function pintarMov(r) {
       var cred = c.credito || { codigo: '', nombre: '' };
       var l = [];
-      s.pagos.forEach(function (p) { var f = fuenteDe(p.fuente) || {}; l.push([f.numCuenta || '—', 'BANCO ' + (f.banco || '—') + ' - ' + (p.fuente || '—'), 0, Number(p.valor) || 0]); });
-      s.pagos.forEach(function (p) { l.push([cred.codigo, cred.nombre, Number(p.valor) || 0, 0]); });
+      /* 8.1 · igual que el CORE (FC8_lineas_): bancos, embargo, diferencia y el beneficiario en UNA línea */
+      var debito = 0;
+      s.pagos.forEach(function (p) { var f = fuenteDe(p.fuente) || {}; var v = Number(p.valor) || 0; l.push([f.numCuenta || '—', 'BANCO ' + (f.banco || '—') + ' - ' + (p.fuente || '—'), 0, v]); debito += v; });
+      if (r.embargo) {
+        var ce = (c.embargo && c.embargo.cuenta) || { codigo: '138490002', nombre: 'RESPONSABILIDADES CONTRATISTAS' };
+        l.push([ce.codigo, ce.nombre, 0, r.embargo]); debito += r.embargo;
+      }
       var cd = reglas().cuentaDiferencia || {};
       if (r.dif > 0 && String(cd.codigo || '').trim() && s.motivo.tipo) {
-        l.push([cred.codigo, cred.nombre, r.dif, 0]);
-        l.push([cd.codigo, (cd.nombre || 'Diferencia') + ' (' + s.motivo.tipo + ')', 0, r.dif]);
+        l.push([cd.codigo, (cd.nombre || 'Diferencia') + ' (' + s.motivo.tipo + ')', 0, r.dif]); debito += r.dif;
       }
+      l.push([cred.codigo, cred.nombre, debito, 0]);
       var deb = 0, cre = 0;
       l.forEach(function (x) { deb += x[2]; cre += x[3]; });
       var pres = s.pagos.length < 2 ? [[c.cdp, c.rp, c.cobro]] : [[c.cdp, c.rp, c.cobro - (Number(s.pagos[1].valor) || 0)], [c.cdp, c.rp, Number(s.pagos[1].valor) || 0]];
@@ -585,8 +649,10 @@
     /* ---- los botones ---- */
     var f = firmantes() || {};
     if (!f.listo && f.faltan) fin.appendChild(K.nodo('<p class="op-nota op-nota--aviso">' + K.icono('lapiz', 14) + ' Falta ' + K.esc(f.faltan.join(', ')) + ' para crear el egreso.</p>'));
-    else fin.appendChild(K.nodo('<p class="op-nota">' + K.icono('lapiz', 14) + ' Firman: <b>' + K.esc(nombre(f.alcaldesa && f.alcaldesa.nombre)) + '</b> y <b>' +
-      K.esc(nombre(f.hacienda && f.hacienda.nombre)) + '</b>. Elaboró: tú' + (f.modifico ? ' · Modificó: ' + K.esc(nombre(f.modifico)) : '') + '.</p>'));
+    else fin.appendChild(K.nodo('<p class="op-nota">' + K.icono('lapiz', 14) + ' Aprobó: <b>' + K.esc(nombre(f.alcaldesa && f.alcaldesa.nombre)) + '</b> · Revisó: <b>' +
+      K.esc(nombre(f.hacienda && f.hacienda.nombre)) + '</b>. ' + (rehacer
+        ? 'Elaboró: <b>' + K.esc(nombre((c.datos && c.datos.elaboro) || '—')) + '</b> · Modificó: tú.'
+        : 'Elaboró: tú (Modificó queda vacío).') + '</p>'));
     var acc = K.nodo('<div class="op-fin__acc"></div>');
     var crearB = K.nodo('<button type="button" class="kit-btn kit-btn--marca op-crear">' + K.icono('documento', 18) + (rehacer ? ' Rehacer egreso' : ' Crear egreso') + '</button>');
     crearB.addEventListener('click', function () { crear(c, s, rehacer, crearB, iF); });
@@ -599,6 +665,7 @@
     if (K.piezas.fechas) K.piezas.fechas.montar(fF);
     iF.value = txtAIso(s.fecha);
     iF.addEventListener('change', function () { s.fecha = isoATxt(iF.value) || hoyTxt(); });
+    pintarEmbargo();
     refrescar();
     if (C.alDetalle) C.alDetalle(c);
   }
@@ -615,6 +682,8 @@
     if (r.errores.length) { K.aviso(r.errores[0], 'aviso', 6000); return; }
     var lista = [['Contratista', nombre(c.nombre) + ' · cuenta ' + c.informe + ' de ' + (c.total || '—')], ['Orden de pago', (c.orden || '—') + ' · neto ' + pesos(c.neto)]];
     s.pagos.forEach(function (p, i) { var fu = fuenteDe(p.fuente) || {}; lista.push(['Pago ' + (i + 1), pesos(p.valor) + ' · ' + p.fuente + ' · ' + fu.banco + ' ' + fu.numCuenta]); });
+    if (r.embargo) lista.push(['Embargo', pesos(r.embargo) + ' a ' + ((c.embargo.cuenta && c.embargo.cuenta.codigo) || '138490002')]);
+    else if (c.embargo && c.embargo.cuota > 0) lista.push(['Embargo', 'NO se descuenta en este egreso']);
     lista.push(['Total girado', pesos(r.total)]);
     if (r.dif) lista.push(['Diferencia', pesos(r.dif) + ' · ' + s.motivo.tipo]);
     lista.push(['Fecha', s.fecha]);
@@ -624,7 +693,8 @@
         boton.disabled = true;
         var datos = { fila: c.fila, id: c.id, informe: c.informe, numero: numero, fecha: s.fecha, rehacer: !!rehacer,
                       pagos: s.pagos.map(function (p) { return { valor: Math.round(Number(p.valor) || 0), fuente: p.fuente }; }),
-                      motivo: r.dif ? { tipo: s.motivo.tipo, texto: s.motivo.texto } : null };
+                      motivo: r.dif ? { tipo: s.motivo.tipo, texto: s.motivo.texto } : null,
+                      embargo: { aplicar: !!(s.embargo && s.embargo.aplicar) } };
         return K.piezas.guardado.mientras(K.pedir('crearEgreso', datos, { ms: 150000 }), {
           titulo: rehacer ? 'Rehaciendo el egreso' : 'Creando el egreso', sub: 'No cierres esta ventana hasta que termine.',
           pasos: ['Cuadrando con la orden de pago…', 'Llenando la plantilla…', 'Guardando el PDF en la carpeta de la cuenta…', rehacer ? 'Casi listo…' : 'Avisando al contratista y a Tesorería…'],
@@ -640,6 +710,8 @@
           if (res.aviso && !res.aviso.ok) malos.push('al contratista (' + (res.aviso.error || 'no salió') + ')');
           if (res.grupo && !res.grupo.ok) malos.push('al grupo de Tesorería (' + (res.grupo.error || 'no salió') + ')');
           if (malos.length) K.aviso('El egreso quedó creado, pero no se pudo avisar ' + malos.join(' ni ') + '.', 'aviso', 9000);
+          else if (res.embargo && res.embargo.levantado) K.aviso('Egreso sin el descuento del embargo. Si ya no aplica, levántalo en la tarjeta del contratista.', 'aviso', 9000);
+          else if (res.embargo && res.embargo.cumple) K.aviso('Con este egreso el embargo llegó a su tope: ya no se descuenta más.', 'ok', 7000);
           C.irA('emitidos');
           setTimeout(function () { verEgreso(nueva || { egreso: numero, _pdf: { bytes: bytes, nombre: res.nombre } }); }, 450);
         });
@@ -734,6 +806,8 @@
       (d.pagos || []).forEach(function (p) {
         zPago.appendChild(K.nodo('<p class="tg-banco">' + K.icono('moneda', 13) + ' ' + K.esc(pesos(p.valor)) + ' · ' + K.esc(p.fuente) + ' · ' + K.esc(p.banco) + ' ' + K.esc(p.numCuenta) + '</p>'));
       });
+      if (d.embargo && d.embargo.valor > 0) zPago.appendChild(K.nodo('<p class="tg-banco">' + K.icono('candado', 13) + ' Embargo ' + K.esc(pesos(d.embargo.valor)) + ' · ' + K.esc(d.embargo.cuenta ? d.embargo.cuenta.codigo : '') + '</p>'));
+      else if (d.embargo && d.embargo.levantado) zPago.appendChild(K.nodo('<p class="op-nota op-nota--aviso">' + K.icono('aviso', 13) + ' Salió sin el descuento del embargo.</p>'));
       if (d.motivo && d.motivo.texto) zPago.appendChild(K.nodo('<p class="op-nota">' + K.icono('info', 13) + ' ' + K.esc(d.motivo.texto) + '</p>'));
     } else if (C.puede('egresosEmitidos')) {
       /* egreso de la app anterior: los pagos se escriben aquí, como antes */
@@ -822,7 +896,7 @@
     _filtradas: function () { return pendientes().filter(function (c) { return pasa(c); }); },
     _filtradasE: function () { return emitidos().filter(function (c) { return c.error ? !F.eque : pasaE(c); }); },
     _actual: function () { return ACTUAL; }, _sel: function (c) { return c ? SEL[c.fila] || SEL[c.fila + 'R'] || null : null; },
-    _revisar: revisar, _numero: numeroEgreso, _fuente: fuenteDe,
+    _revisar: revisar, _numero: numeroEgreso, _fuente: fuenteDe, _embargo: embargoDe,
     TRAMO_TXT: TRAMO_TXT
   };
 }());

@@ -42,7 +42,115 @@
   /** El arranque entrega la lista hecha: se mete sin viajar. */
   function recibir(datos) {
     TODAS = K.piezas.listas.expandir(datos).map(pulir);
+    if (datos && datos.embargos) EMB = datos.embargos;      /* 8.1: vienen en el mismo viaje */
     HORA = new Date();
+  }
+
+  /* ══════════════ 8.1 · EMBARGOS (por contrato) ══════════════ */
+  var EMB = {};
+  function embDe(id) {
+    var k = K.norm(id || '');
+    for (var x in EMB) if (Object.prototype.hasOwnProperty.call(EMB, x) && K.norm(x) === k) return EMB[x];
+    return null;
+  }
+  function pesos(v) { return K.pesos(v || 0); }
+
+  function marcaEmbargo(e) {
+    if (!e) return '';
+    if (e.cumplido) return '<span class="ct-marca">' + K.icono('candado', 11) + ' EMBARGO CUMPLIDO</span>';
+    if (!e.activo) return '<span class="ct-marca">' + K.icono('candado', 11) + ' EMBARGO LEVANTADO</span>';
+    return '<span class="ct-marca tg-marca--emb">' + K.icono('candado', 11) + ' EMBARGO · ' + K.esc(pesos(e.cuota)) + '</span>';
+  }
+
+  /** El estado en palabras: para la ficha y el modal. */
+  function resumenEmbargo(e) {
+    if (!e) return '<p class="op-nota">Este contrato no tiene embargo.</p>';
+    var filas = [
+      ['Estado', e.cumplido ? 'Cumplido: llegó al tope' : (e.activo ? 'Activo: se descuenta en cada cuenta' : 'Levantado: no se descuenta')],
+      ['Valor por cuenta', pesos(e.valor)],
+      ['Tope', e.tope ? pesos(e.tope) : 'Sin tope'],
+      ['Descontado', pesos(e.descontado) + (e.previo ? ' (' + pesos(e.previo) + ' antes de la app)' : '')],
+      ['Falta', e.restante === null || e.restante === undefined ? '—' : pesos(e.restante)],
+      ['Próxima cuenta', e.cuota ? pesos(e.cuota) : 'No se descuenta']
+    ];
+    var h = '<dl class="op-valores">' + filas.map(function (f) { return '<div><dt>' + K.esc(f[0]) + '</dt><dd>' + K.esc(f[1]) + '</dd></div>'; }).join('') + '</dl>';
+    if ((e.cuentas || []).length) {
+      h += '<p class="tg-mov__t">Descontado con la app</p><ul class="tg-emb__lista">' + e.cuentas.map(function (c) {
+        return '<li>Cuenta ' + K.esc(c.informe) + (c.egreso ? ' · egreso ' + K.esc(c.egreso) : '') + (c.fecha ? ' · ' + K.esc(c.fecha) : '') + ' <b>' + K.esc(pesos(c.valor)) + '</b></li>';
+      }).join('') + '</ul>';
+    }
+    if (e.nota) h += '<p class="op-nota">' + K.icono('info', 13) + '<span>' + K.esc(e.nota) + '</span></p>';
+    if (e.quien) h += '<p class="op-nota"><span>Último cambio: ' + K.esc(nombre(e.quien)) + (e.cuando ? ' · ' + K.esc(e.cuando) : '') + '</span></p>';
+    return h;
+  }
+
+  /** El modal: valor fijo por cuenta, tope, lo ya descontado antes de la app y si está activo. */
+  function abrirEmbargo(f, alGuardar) {
+    var e = embDe(f.id);
+    var capa = K.nodo(
+      '<div class="kit-capa tg-embm" role="dialog" aria-modal="true">' +
+      '  <div class="kit-capa__velo"></div>' +
+      '  <section class="kit-capa__hoja">' +
+      '    <header class="kit-capa__h">Embargo · ' + K.esc(nombre(f.nombre)) +
+      '      <button type="button" class="kit-capa__x" aria-label="Cerrar">' + K.icono('cerrar', 18) + '</button></header>' +
+      '    <div class="kit-capa__cuerpo">' +
+      '      <p class="op-nota"><span>Contrato ' + K.esc(f.contrato || '') + '. Se descuenta <b>una vez en cada cuenta</b> de este contrato, en EGRESOS PENDIENTES, hasta llegar al tope.</span></p>' +
+      '      <label class="op-check"><input type="checkbox" data-c="activo"><span><b>Embargo activo</b><small>Desmárcalo para levantarlo: deja de descontarse.</small></span></label>' +
+      '      <label class="op-campo"><span>VALOR FIJO POR CUENTA</span><input data-c="valor" inputmode="numeric" autocomplete="off"></label>' +
+      '      <label class="op-campo"><span>TOPE TOTAL <small>(vacío = sin tope)</small></span><input data-c="tope" inputmode="numeric" autocomplete="off"></label>' +
+      '      <label class="op-campo"><span>YA DESCONTADO ANTES DE LA APP <small>(para que el tope cuente lo de antes)</small></span><input data-c="previo" inputmode="numeric" autocomplete="off"></label>' +
+      '      <label class="op-campo"><span>Nota <small>(juzgado, oficio…)</small></span><input data-c="nota" maxlength="200" autocomplete="off"></label>' +
+      '      <div class="tg-emb__estado"></div>' +
+      '    </div>' +
+      '    <div class="kit-capa__pie"></div>' +
+      '  </section>' +
+      '</div>');
+    var q = function (k) { return capa.querySelector('[data-c="' + k + '"]'); };
+    q('activo').checked = e ? !!e.activo : true;
+    q('valor').value = e && e.valor ? K.numero(e.valor) : '';
+    q('tope').value = e && e.tope ? K.numero(e.tope) : '';
+    q('previo').value = e && e.previo ? K.numero(e.previo) : '';
+    q('nota').value = (e && e.nota) || '';
+    var leer = {};
+    ['valor', 'tope', 'previo'].forEach(function (k) { leer[k] = K.pesosEnVivo(q(k)); });
+    capa.querySelector('.tg-emb__estado').innerHTML = e ? resumenEmbargo(e) : '';
+    var pie = capa.querySelector('.kit-capa__pie');
+    function cerrar() { capa.classList.remove('kit-capa--on'); setTimeout(function () { capa.remove(); }, 200); document.removeEventListener('keydown', esc); }
+    function esc(ev) { if (ev.key === 'Escape') cerrar(); }
+    document.addEventListener('keydown', esc);
+    capa.querySelector('.kit-capa__x').addEventListener('click', cerrar);
+    capa.querySelector('.kit-capa__velo').addEventListener('click', cerrar);
+    function num(k) { var v = leer[k] ? leer[k]() : q(k).value; return Math.round(Number(String(v).replace(/\D/g, '')) || 0); }
+    function enviar(datos, titulo, listo, boton) {
+      boton.disabled = true;
+      return K.piezas.guardado.mientras(K.pedir('embargoGuardar', datos, { ms: 60000 }), {
+        titulo: titulo, sub: 'Queda para las próximas cuentas de este contrato.', pasos: ['Guardando el embargo…'], listo: { titulo: listo, paso: 'Listo' }
+      }).then(function (res) {
+        EMB = res.embargos || EMB;
+        if (window.EGRESOS && window.EGRESOS.soltar) window.EGRESOS.soltar();   /* la bandeja se vuelve a pedir con el embargo nuevo */
+        cerrar();
+        if (alGuardar) alGuardar(res.embargo);
+      })['catch'](function (er) { K.aviso((er && er.message) || 'No se pudo guardar el embargo.', 'malo', 7000); })
+        .then(function () { boton.disabled = false; });
+    }
+    if (e) {
+      var quitar = K.nodo('<button type="button" class="kit-btn kit-btn--plano">' + K.icono('basura', 16) + ' Quitar</button>');
+      quitar.addEventListener('click', function () {
+        K.piezas.confirmar.preguntar({ titulo: 'Quitar el embargo', texto: 'Se borra la configuración de este contrato. Lo ya descontado en egresos no cambia.', si: 'Quitar', peligro: true })
+          .then(function (si) { if (si) enviar({ idContrato: f.id, quitar: true }, 'Quitando el embargo', 'Embargo quitado', quitar); });
+      });
+      pie.appendChild(quitar);
+    }
+    var guardar = K.nodo('<button type="button" class="kit-btn kit-btn--marca">' + K.icono('check', 16) + ' Guardar</button>');
+    guardar.addEventListener('click', function () {
+      var d = { idContrato: f.id, activo: q('activo').checked, valor: num('valor'), tope: num('tope'), previo: num('previo'), nota: q('nota').value };
+      if (d.activo && !(d.valor > 0)) { K.aviso('Escribe el VALOR FIJO que se descuenta en cada cuenta.', 'aviso', 4500); q('valor').focus(); return; }
+      if (d.tope && d.tope < d.valor) { K.aviso('El TOPE no puede ser menor que el valor de una cuota.', 'aviso', 4500); return; }
+      enviar(d, 'Guardando el embargo', d.activo ? 'Embargo activo' : 'Embargo levantado', guardar);
+    });
+    pie.appendChild(guardar);
+    document.body.appendChild(capa);
+    setTimeout(function () { capa.classList.add('kit-capa--on'); try { q('valor').focus(); } catch (x) {} }, 10);
   }
   var HORA = null;             /* cuándo llegó la lista: se enseña junto al conteo */
 
@@ -392,6 +500,7 @@
     if (f.adic) marcas.push('<span class="ct-marca ct-marca--adic">ADICIONADO</span>');
     if (f.cedido) marcas.push('<span class="ct-marca ct-marca--ced">CEDIDO</span>');
     if (f.susp) marcas.push('<span class="ct-marca ct-marca--susp">' + K.icono('pausa', 11) + ' SUSPENDIDO ' + K.esc(f.susp) + '</span>');
+    if (embDe(f.id)) marcas.push(marcaEmbargo(embDe(f.id)));
     t.appendChild(K.nodo(
       '<dl class="ct-t__datos">' +
       '  <div><dt>Contrato</dt><dd>' + K.esc(f.contrato || '—') + (f.fecha ? ' <small>de ' + K.esc(f.fecha) + '</small>' : '') + '</dd></div>' +
@@ -406,7 +515,7 @@
     }
     if (marcas.length) t.appendChild(K.nodo('<div class="ct-t__marcas">' + marcas.join('') + '</div>'));
 
-    t.appendChild(acciones(f, false));
+    t.appendChild(acciones(f, false, function () { t.replaceWith(tarjeta(f)); }));
     var g = gestion(f);
     if (g) t.appendChild(g);
     return t;
@@ -418,7 +527,7 @@
   /** Detalles · WhatsApp · Drive. Las mismas en tarjeta y ficha.
       5.1.1: SIN activar/inactivar. Oss lo hace de forma automática con otro
       script; un botón aquí sería una segunda puerta para lo mismo. */
-  function acciones(f, enFicha) {
+  function acciones(f, enFicha, alEmbargo) {
     var a = K.nodo('<div class="ct-acc"></div>');
     if (!enFicha) {
       var ver = K.nodo('<button type="button" class="kit-btn kit-btn--marca ct-acc__ver">' + K.icono('documento', 16) + ' Detalles</button>');
@@ -438,6 +547,12 @@
         Promise.resolve(window.REQS.cargar(false))['catch'](function () {}).then(function () { window.REQS.redactar([f]); });
       });
       a.appendChild(rq);
+    }
+    /* 8.1 · el embargo se configura aquí (ADMIN, EGRESO y PAGO) */
+    if (C.puede && C.puede('embargos')) {
+      var em = K.nodo('<button type="button" class="ins-accion" aria-label="Embargo de ' + K.esc(f.nombre) + '">' + K.icono('candado', 16) + ' Embargo</button>');
+      em.addEventListener('click', function () { K.vibrar(8); abrirEmbargo(f, alEmbargo); });
+      a.appendChild(em);
     }
     var wa = K.nodo('<button type="button" class="ins-accion" aria-label="WhatsApp de ' + K.esc(f.nombre) + '">' + K.icono('whatsapp', 16) + ' WhatsApp</button>');
     wa.addEventListener('click', function () {
@@ -485,6 +600,7 @@
     if (f.adic) marcas += '<span class="ct-marca ct-marca--adic">ADICIONADO</span>';
     if (f.cedido) marcas += '<span class="ct-marca ct-marca--ced">CEDIDO</span>';
     if (f.susp) marcas += '<span class="ct-marca ct-marca--susp">' + K.icono('pausa', 11) + ' SUSPENDIDO ' + K.esc(f.susp) + '</span>';
+    if (d.embargo) { EMB[f.id] = d.embargo; marcas += marcaEmbargo(d.embargo); }
     cab.appendChild(K.nodo(
       '<div class="ct-ficha__quien">' +
       '  <h2>' + K.esc(nombre(f.nombre)) + '</h2>' +
@@ -492,7 +608,7 @@
       '  <div class="ct-t__marcas">' + marcas + '</div>' +
       '</div>'
     ));
-    cab.appendChild(acciones(f, true));
+    cab.appendChild(acciones(f, true, function (nuevo) { d.embargo = nuevo || null; pintarFicha(caja, d); }));
     var gF = gestion(f);
     if (gF) cab.appendChild(gF);
     caja.appendChild(cab);
@@ -534,6 +650,11 @@
       dato('Expedición del documento', p.expedida), dato('Teléfono', p.telefono), dato('Correo', p.correo),
       dato('Dirección', p.direccion), dato('Municipio de residencia', p.municipio), dato('Fecha de nacimiento', p.nacimiento)
     ]));
+    if (d.embargo) {
+      var ge = K.nodo('<section class="kit-tarjeta grupo tg-emb-ficha"><h3 class="grupo__t">' + K.icono('candado', 16) + ' Embargo</h3></section>');
+      ge.appendChild(K.nodo('<div>' + resumenEmbargo(d.embargo) + '</div>'));
+      rej.appendChild(ge);
+    }
     rej.appendChild(grupo('Para el pago', [
       dato('Tipo de cuenta', p.tipoCuenta), dato('Número de cuenta', p.numeroCuenta), dato('Banco', p.banco)
     ]));

@@ -2755,3 +2755,20 @@
   .cf-item.tg-fuente { grid-template-columns: 1fr 1fr auto; }
   .cf-item.tg-fuente > .op-campo:first-child { grid-column: 1 / -1; }
 }
+
+/* ══════════════ 8.1 · EMBARGOS ══════════════ */
+.tg-marca--emb { background: var(--k-malo-fondo); color: var(--k-malo); }
+.tg-emb {
+  margin: 4px 0 12px; padding: 12px; border-radius: var(--k-r-md);
+  border: 1px solid rgba(220, 38, 38, .35); background: var(--k-malo-fondo);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.tg-emb--off { border-color: var(--k-linea); background: var(--k-papel-2); }
+.tg-emb .op-nota { margin: 0; }
+.tg-emb__lista { margin: 4px 0 8px; padding-left: 18px; font-size: .88rem; color: var(--k-tinta-2); }
+.tg-emb__lista b { color: var(--k-tinta); }
+.tg-embm .kit-capa__cuerpo { display: flex; flex-direction: column; gap: 12px; }
+.tg-embm .op-campo input { width: 100%; }
+.tg-embm .kit-capa__pie { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.tg-emb__estado:empty { display: none; }
+.tg-emb__estado { border-top: 1px solid var(--k-linea); padding-top: 10px; }

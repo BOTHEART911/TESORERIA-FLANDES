@@ -110,7 +110,7 @@
     egreso: function () {
       return {
         guia: 'El egreso de UNA cuenta. Escribe solo los dígitos del **N° de egreso** (1234 → 2026001234), la **fecha** (hoy por defecto), el **valor pagado** y la **fuente** (el banco y la cuenta salen de la configuración). ' +
-              'Con dos fuentes, agrega el segundo pago. Si lo girado no es el neto de la orden (embargo, pago parcial, situación de fondos), escoge el motivo: sale como observación en el PDF. Girar más que la orden no se puede.',
+              'Con dos fuentes, agrega el segundo pago. Si el contrato tiene **embargo**, llega descontado con un check: desmárcalo solo si en este egreso no aplica (y levántalo en la tarjeta del contratista). Si lo girado no es el neto de la orden por otra razón (pago parcial, situación de fondos), escoge el motivo: sale como observación en el PDF. Girar más que la orden no se puede.',
         botones: [
           { texto: '¿Cuadra con la orden?', responde: function () {
               var c = EG() && EG()._actual(); if (!c) return 'Abre una cuenta.';
@@ -212,7 +212,7 @@
 
     configuracion: function () {
       return {
-        guia: 'Las **fuentes de destinación** (banco y N° de cuenta de cada una), las **firmas del egreso** (alcaldesa, hacienda, sello y quién modificó), las **reglas** de la diferencia y, para ADMIN, las **retenciones** de Contabilidad. Cada bloque tiene su botón Guardar.',
+        guia: 'Las **fuentes de destinación** (banco y N° de cuenta de cada una), las **firmas del egreso** (Aprobó: alcaldesa, Revisó: hacienda, y el sello), las **reglas** de la diferencia y, para ADMIN y PAGO, las **retenciones** de Contabilidad. Cada bloque tiene su botón Guardar.',
         botones: [
           { texto: '¿Qué falta por definir?', responde: function () {
               var c = CF() && CF()._cfg(); if (!c) return 'Todavía está cargando.';

@@ -8,8 +8,8 @@
 
    Roles (hoja USUARIOS, app TESORERIA) y lo que ve cada uno lo decide
    PERMISOS en CONFIG:
-     · EGRESO ... egresos pendientes (crear el egreso) y emitidos
-     · PAGO ..... egresos emitidos (marcar la cuenta paga)
+     · EGRESO ... egresos pendientes (crear el egreso) y emitidos; embargos (8.1)
+     · PAGO ..... egresos emitidos (marcar la cuenta paga); retenciones y embargos (8.1)
      · ADMIN .... todo, y las firmas del egreso y las retenciones
      · INVITADO . cuentas pagadas (abrir el egreso = cierre de cuenta),
                   solicitudes y sus informes

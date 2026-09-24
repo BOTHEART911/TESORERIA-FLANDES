@@ -6,8 +6,10 @@
      · MI FIRMA Y MI FOTO: la firma personal (queda en USUARIOS) y la foto.
      · FUENTES DE DESTINACIÓN: nombre, banco y N° de cuenta (DESTINACIONES).
        Es la lista que se escoge en cada pago del egreso.
-     · FIRMAS DEL EGRESO (ADMIN): alcaldesa, secretaria de hacienda, el
-       sello y quién va en "Modificó" (vacío = el INVITADO activo).
+     · FIRMAS DEL EGRESO (ADMIN): alcaldesa (Aprobó), secretaria de hacienda
+       (Revisó) y el sello. 8.1: Elaboró = quien crea el egreso y Modificó =
+       quien lo rehace; ya no se escriben aquí.
+     · RETENCIONES: 8.1, también PAGO (permiso 'retenciones').
      · REGLAS DEL EGRESO: motivos de diferencia, fuentes que admiten 0 y la
        cuenta contable de la diferencia (si se deja vacía, la diferencia va
        solo como observación).
@@ -394,7 +396,7 @@
     var puede = !!(CFG && CFG.puedeFirmas);
     var s = seccion('lapiz', 'FIRMAS DEL EGRESO',
       'Salen en todos los comprobantes de egreso. ' + (puede ? 'Cambia el nombre, el cargo o la imagen de cada una.' : 'Solo ADMIN las cambia.') +
-      ' En <b>Modificó</b> va el nombre escrito aquí o, si se deja vacío, el usuario INVITADO activo' + (f.modificoActual ? ' (hoy <b>' + K.esc(nombre(f.modificoActual)) + '</b>)' : '') + '.');
+      ' La alcaldesa firma en <b>Aprobó</b> y la secretaria de hacienda en <b>Revisó</b>. <b>Elaboró</b> es quien crea el egreso y <b>Modificó</b> quien lo rehace (vacío si no se rehízo).');
     if (est.faltan && est.faltan.length) s.appendChild(K.nodo('<p class="op-nota op-nota--aviso">' + K.icono('aviso', 14) + ' Para crear egresos falta ' + K.esc(est.faltan.join(', ')) + '.</p>'));
     var rej = K.nodo('<div class="tg-firmas"></div>');
     s.appendChild(rej);
@@ -435,15 +437,11 @@
       }
       rej.appendChild(t);
     });
-    var mo = entrada(f.modifico || '', ' maxlength="80" placeholder="(vacío = el INVITADO activo)"');
-    mo.disabled = !puede;
-    mo.addEventListener('input', function () { f.modifico = mo.value; });
-    s.appendChild(campo('Modificó', mo, 'cf-ancho'));
     if (puede) {
       var acc = K.nodo('<div class="ct-acc"></div>');
       var g = K.nodo('<button type="button" class="kit-btn kit-btn--marca">' + K.icono('check', 16) + ' Guardar nombres</button>');
       g.addEventListener('click', function () {
-        guardar('firmantes', { alcaldesa: { nombre: f.alcaldesa.nombre, cargo: f.alcaldesa.cargo }, hacienda: { nombre: f.hacienda.nombre, cargo: f.hacienda.cargo }, modifico: f.modifico || '' }, g);
+        guardar('firmantes', { alcaldesa: { nombre: f.alcaldesa.nombre, cargo: f.alcaldesa.cargo }, hacienda: { nombre: f.hacienda.nombre, cargo: f.hacienda.cargo } }, g);
       });
       acc.appendChild(g);
       s.appendChild(acc);
