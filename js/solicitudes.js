@@ -126,7 +126,8 @@
       w.href = 'https://wa.me/57' + String(x.telefono).replace(/\D/g, '').slice(-10);
       a.appendChild(w);
     }
-    if (pend && C.puede('solicitudes')) {
+    /* 25/09 · INVITADO solo consulta: no responde (el CORE también lo niega) */
+    if (pend && C.puede('solicitudes') && K.norm(((C.yo && C.yo()) || {}).rol || '') !== 'INVITADO') {
       var r = K.nodo('<button type="button" class="kit-btn kit-btn--marca">' + K.icono('responder', 16) + ' Responder</button>');
       r.addEventListener('click', function () { responder(x, repintar); });
       a.appendChild(r);

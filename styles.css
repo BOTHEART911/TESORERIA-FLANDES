@@ -2772,3 +2772,6 @@
 .tg-embm .kit-capa__pie { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .tg-emb__estado:empty { display: none; }
 .tg-emb__estado { border-top: 1px solid var(--k-linea); padding-top: 10px; }
+
+/* 25/09 · el resumen del inicio va debajo de su título (la hoja base lo sube sobre la franja del contratista) */
+.bloque > .resumen { margin-top: 0; }
