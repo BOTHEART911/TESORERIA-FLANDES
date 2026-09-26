@@ -334,11 +334,15 @@
   /* ══════════════ documentos ══════════════ */
 
   function verOrden(c) {
-    var docs = [];
-    if (c.tOrden) docs.push({ titulo: 'Orden de pago ' + (c.orden || ''), t: c.tOrden, nombre: 'OP_' + c.informe + '_' + c.contrato + '.pdf' });
+    /* 25/09 · el botón dice ORDEN DE PAGO: si no hay orden enlazada no se
+       muestra otro documento en su lugar (antes abría el informe de
+       supervisión y parecía que la orden era ese). */
+    if (!c.tOrden) {
+      K.aviso('La orden ' + (c.orden || '') + ' se hizo con la app anterior y su PDF no quedó enlazado en la hoja. Está en la carpeta de la cuenta ' + c.informe + '.', 'aviso', 6500);
+      return;
+    }
+    var docs = [{ titulo: 'Orden de pago ' + (c.orden || ''), t: c.tOrden, nombre: 'OP_' + c.informe + '_' + c.contrato + '.pdf' }];
     if (c.tInforme) docs.push({ titulo: 'Informe de supervisión · cuenta ' + c.informe, t: c.tInforme, nombre: 'INFORME_' + c.informe + '.pdf' });
-    if (!docs.length) { K.aviso('Esta orden de pago se hizo con la app anterior: no tiene PDF.', 'aviso', 4500); return; }
-    if (!c.tOrden) K.aviso('Esta orden se hizo con la app anterior (sin PDF): te muestro el informe de supervisión.', 'info', 4500);
     O().verDocs(docs, 0);
   }
 
