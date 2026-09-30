@@ -402,7 +402,7 @@
     K.piezas.creditos.montar(caja);
 
     if (conBandeja && window.EGRESOS) {
-      var p = window.EGRESOS.cargar(false);
+      var p = window.EGRESOS.cargar(false);   /* 29/09 · NO va de fondo: es la bandeja de trabajo (medido: de fondo llegaba 1,7 s después) */
       (acc.pendientes || acc.emitidos ? K.piezas.esqueletos.mientras(destino, p, { forma: 'ficha', cuantos: 1, espera: 'Cargando los egresos' }) : p)
         .then(function () {
           var n = window.EGRESOS.contar();
