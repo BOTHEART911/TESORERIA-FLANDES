@@ -13,7 +13,8 @@
      fondos) hay que decir el motivo; más que la orden, nunca.
      CREAR EGRESO: una llamada. El CORE vuelve a cuadrar, arma el PDF con
      la plantilla, lo guarda en la carpeta de la cuenta, pasa la cuenta a
-     EGRESO y avisa al contratista y al grupo de Tesorería.
+     EGRESO y avisa SOLO al grupo de Tesorería (29/09: al contratista ya
+     no se le avisa aquí; su aviso sale al marcar la cuenta PAGADA).
 
    EGRESOS EMITIDOS  (#/emitidos)
      Las cuentas en EGRESO. El check MARCAR CUENTA PAGA es una llamada:
@@ -667,8 +668,8 @@
     acc.appendChild(crearB);
     fin.appendChild(acc);
     fin.appendChild(K.nodo('<p class="op-nota">' + (rehacer
-      ? '<b>Rehacer</b> cambia el PDF y los datos del egreso sin volver a avisar al contratista. La cuenta sigue en EGRESO.'
-      : '<b>Crear egreso</b> arma el PDF, lo guarda en la carpeta de la cuenta, la pasa a EGRESO y le avisa al contratista y al grupo de Tesorería.') + '</p>'));
+      ? '<b>Rehacer</b> cambia el PDF y los datos del egreso sin volver a avisar. La cuenta sigue en EGRESO.'
+      : '<b>Crear egreso</b> arma el PDF, lo guarda en la carpeta de la cuenta, la pasa a EGRESO y le avisa al grupo de Tesorería. Al contratista se le avisa cuando marques la cuenta paga.') + '</p>'));
 
     if (K.piezas.fechas) K.piezas.fechas.montar(fF);
     iF.value = txtAIso(s.fecha);
@@ -705,7 +706,7 @@
                       embargo: { aplicar: !!(s.embargo && s.embargo.aplicar) } };
         return K.piezas.guardado.mientras(K.pedir('crearEgreso', datos, { ms: 150000 }), {
           titulo: rehacer ? 'Rehaciendo el egreso' : 'Creando el egreso', sub: 'No cierres esta ventana hasta que termine.',
-          pasos: ['Cuadrando con la orden de pago…', 'Llenando la plantilla…', 'Guardando el PDF en la carpeta de la cuenta…', rehacer ? 'Casi listo…' : 'Avisando al contratista y a Tesorería…'],
+          pasos: ['Cuadrando con la orden de pago…', 'Llenando la plantilla…', 'Guardando el PDF en la carpeta de la cuenta…', rehacer ? 'Casi listo…' : 'Avisando al grupo de Tesorería…'],
           listo: { titulo: 'Egreso ' + numero + (rehacer ? ' rehecho' : ' creado'), paso: 'Cuenta en EGRESOS EMITIDOS' }
         }).then(function (res) {
           delete SEL[c.fila]; delete SEL[c.fila + 'R'];
@@ -715,7 +716,6 @@
           if (nueva) nueva._pdf = { bytes: bytes, nombre: res.nombre };
           bajarPdf(bytes, res.nombre);
           var malos = [];
-          if (res.aviso && !res.aviso.ok) malos.push('al contratista (' + (res.aviso.error || 'no salió') + ')');
           if (res.grupo && !res.grupo.ok) malos.push('al grupo de Tesorería (' + (res.grupo.error || 'no salió') + ')');
           if (malos.length) K.aviso('El egreso quedó creado, pero no se pudo avisar ' + malos.join(' ni ') + '.', 'aviso', 9000);
           else if (res.embargo && res.embargo.levantado) K.aviso('Egreso sin el descuento del embargo. Si ya no aplica, levántalo en la tarjeta del contratista.', 'aviso', 9000);
