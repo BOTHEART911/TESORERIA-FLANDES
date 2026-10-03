@@ -26,7 +26,8 @@
   var CFG = null;
   var SOLO_FIRMA = false;
 
-  var TIPOS_BASE = [{ v: 'COBRO', t: 'El cobro de la cuenta' }, { v: 'TRAMO', t: 'El valor del tramo (contrato o adición)' }, { v: 'IVA', t: 'El IVA incluido en el cobro' }];
+  var TIPOS_BASE = [{ v: 'COBRO', t: 'El cobro de la cuenta' }, { v: 'TRAMO', t: 'El valor del tramo (contrato o adición)' }, { v: 'IVA', t: 'El IVA incluido en el cobro' },
+                    { v: 'MANUAL', t: 'Un valor base que se escribe en la orden (ej. el IVA de la factura electrónica)' }];
   var TIPO_CORTO = {
     'PRESTACION DE SERVICIOS PROFESIONALES': 'Profesionales',
     'PRESTACION DE SERVICIOS DE APOYO A LA GESTION': 'Apoyo a la gestión',
@@ -274,6 +275,7 @@
       t.appendChild(g);
       var sws = K.nodo('<div class="cf-item__sw"></div>');
       [['activa', 'Encendida', r.activa !== false], ['automatica', 'Automática', r.automatica], ['soloPrimeraCuenta', 'Solo primera cuenta del tramo', r.soloPrimeraCuenta],
+       ['soloFactura', 'Solo para quien presenta factura electrónica', r.soloFactura],
        ['porDefecto', 'Marcada por defecto', r.porDefecto]].forEach(function (x) {
         var sw = interruptor(x[1], x[2]);
         sw.querySelector('input').addEventListener('change', function (e) { r[x[0]] = e.target.checked; if (x[0] === 'activa') t.classList.toggle('cf-item--off', !e.target.checked); });
@@ -414,7 +416,7 @@
     var puede = !!(CFG && CFG.puedeFirmas);
     var s = seccion('lapiz', 'FIRMAS DEL EGRESO',
       'Salen en todos los comprobantes de egreso. ' + (puede ? 'Cambia el nombre, el cargo o la imagen de cada una.' : 'Solo ADMIN las cambia.') +
-      ' La alcaldesa firma en <b>Aprobó</b> y la secretaria de hacienda en <b>Revisó</b>. <b>Elaboró</b> es quien crea el egreso y <b>Modificó</b> quien lo rehace (vacío si no se rehízo).');
+      ' La alcaldesa firma en <b>Aprobó</b> y la secretaria de hacienda en <b>Revisó</b>. <b>Elaboró</b> es el usuario EGRESO y <b>Modificó</b> el usuario EGRESO cuando se rehace (vacío si no se rehízo), aunque el clic lo dé otro usuario; el pago queda a nombre del usuario PAGO.');
     if (est.faltan && est.faltan.length) s.appendChild(K.nodo('<p class="op-nota op-nota--aviso">' + K.icono('aviso', 14) + ' Para crear egresos falta ' + K.esc(est.faltan.join(', ')) + '.</p>'));
     var rej = K.nodo('<div class="tg-firmas"></div>');
     s.appendChild(rej);

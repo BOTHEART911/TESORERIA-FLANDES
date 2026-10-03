@@ -660,8 +660,8 @@
     if (!f.listo && f.faltan) fin.appendChild(K.nodo('<p class="op-nota op-nota--aviso">' + K.icono('lapiz', 14) + ' Falta ' + K.esc(f.faltan.join(', ')) + ' para crear el egreso.</p>'));
     else fin.appendChild(K.nodo('<p class="op-nota">' + K.icono('lapiz', 14) + ' Aprobó: <b>' + K.esc(nombre(f.alcaldesa && f.alcaldesa.nombre)) + '</b> · Revisó: <b>' +
       K.esc(nombre(f.hacienda && f.hacienda.nombre)) + '</b>. ' + (rehacer
-        ? 'Elaboró: <b>' + K.esc(nombre((c.datos && c.datos.elaboro) || '—')) + '</b> · Modificó: tú.'
-        : 'Elaboró: tú (Modificó queda vacío).') + '</p>'));
+        ? 'Elaboró: <b>' + K.esc(nombre((c.datos && c.datos.elaboro) || '—')) + '</b> · Modificó: el usuario EGRESO.'
+        : 'Elaboró: el usuario EGRESO de Tesorería, aunque lo crees tú (Modificó queda vacío).') + '</p>'));
     var acc = K.nodo('<div class="op-fin__acc"></div>');
     var crearB = K.nodo('<button type="button" class="kit-btn kit-btn--marca op-crear">' + K.icono('documento', 18) + (rehacer ? ' Rehacer egreso' : ' Crear egreso') + '</button>');
     crearB.addEventListener('click', function () { crear(c, s, rehacer, crearB, iF); });
