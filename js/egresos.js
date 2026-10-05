@@ -720,7 +720,8 @@
           if (malos.length) K.aviso('El egreso quedó creado, pero no se pudo avisar ' + malos.join(' ni ') + '.', 'aviso', 9000);
           else if (res.embargo && res.embargo.levantado) K.aviso('Egreso sin el descuento del embargo. Si ya no aplica, levántalo en la tarjeta del contratista.', 'aviso', 9000);
           else if (res.embargo && res.embargo.cumple) K.aviso('Con este egreso el embargo llegó a su tope: ya no se descuenta más.', 'ok', 7000);
-          C.irA('emitidos');
+          /* 05/10 · se queda en la lista de donde vino (la bandeja ya llegó con la respuesta: sin otro viaje) */
+          C.irA(rehacer ? 'emitidos' : 'pendientes');
           setTimeout(function () { verEgreso(nueva || { egreso: numero, _pdf: { bytes: bytes, nombre: res.nombre } }); }, 450);
         });
       })['catch'](function (e) { K.aviso((e && e.message) || 'No se pudo crear el egreso.', 'malo', 9000); })
