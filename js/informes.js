@@ -160,7 +160,7 @@
     if (!F) F = leerFiltro();
     var caja = K.nodo('<div class="kit-ancho vista ct of rp rg tg"></div>');
     C.app.appendChild(caja);
-    O().cabecera(caja, 'pdf', 'MIS INFORMES', 'Lo que has hecho en Tesorería: egresos, pagos, solicitudes y cierres. Escoge el periodo y descárgalo en PDF o Excel.');
+    O().cabecera(caja, 'pdf', 'MIS REGISTROS', 'Lo que has hecho en Tesorería: egresos, pagos, solicitudes y cierres. Escoge el periodo y descárgalo en PDF o Excel.');
     var zR = K.nodo('<section class="kit-tarjeta rp-rango"></section>');
     var zT = K.nodo('<div></div>'), zAt = K.nodo('<div></div>');
     zR.appendChild(zT); zR.appendChild(zAt);
@@ -316,7 +316,9 @@
     var T = TIPOS[F.tipo];
     var f = filas().slice().sort(function (a, c) { return String(a[T.quien]).localeCompare(String(c[T.quien]), 'es') || String(a.fecha).localeCompare(String(c.fecha)); });
     if (!f.length) return;
-    var nombre = (T.titulo + ' Tesoreria ' + (F.desde ? O().fecha(F.desde).replace(/\//g, '-') : '') + (F.hasta && F.hasta !== F.desde ? ' a ' + O().fecha(F.hasta).replace(/\//g, '-') : '')).trim();
+    /* 06/10 · el nombre dice qué es, de quién y de cuándo: Egresos_Tesoreria_DEYSI_PATRICIA_GONZALEZ_01-10-2026_a_06-10-2026 */
+    var de = F.quien && f[0] ? O().nombre(f[0][T.quien]) : (!META.todas && META.yo ? O().nombre(META.yo) : (META.todas ? 'todo el equipo' : ''));
+    var nombre = (T.titulo + ' Tesoreria ' + (de ? de + ' ' : '') + (F.desde ? O().fecha(F.desde).replace(/\//g, '-') : '') + (F.hasta && F.hasta !== F.desde ? ' a ' + O().fecha(F.hasta).replace(/\//g, '-') : '')).trim();
     boton.disabled = true; boton.classList.add('kit-ocupado');
     var p = formato === 'pdf' ? K.piezas.exportar.aPDF(nombre, T.pdf, f, informe(f)) : K.piezas.exportar.aExcel(nombre, T.xls, f);
     Promise.resolve(p).then(function (r) {

@@ -385,7 +385,7 @@
 
 
   var TITULOS = { inicio: 'Tu inicio', pendientes: 'Egresos pendientes', egreso: 'El egreso', emitidos: 'Egresos emitidos',
-                  pagadas: 'Cuentas pagadas', solicitudes: 'Solicitudes', informes: 'Mis informes',
+                  pagadas: 'Cuentas pagadas', solicitudes: 'Solicitudes', informes: 'Mis registros',
                   contratistas: 'Contratistas', contratista: 'Ficha del contratista', informe: 'Informe de cuentas',
                   requerimientos: 'Requerimientos', comunicados: 'Comunicados', configuracion: 'Configuración', perfil: 'Mi firma y mi foto' };
 

@@ -205,7 +205,7 @@
 
   function montarBanner() {
     var menu = [{ texto: 'Foto de perfil', al: abrirFoto }];
-    if (puede('misInformes')) menu.push({ texto: 'Mis informes', al: function () { irA('informes'); } });
+    if (puede('misInformes')) menu.push({ texto: 'Mis registros (descargar lo que hice)', al: function () { irA('informes'); } });
     if (puede('configuracion')) {
       menu.push({ texto: 'Mi firma y mi foto', al: function () { irA('perfil'); } });
       menu.push({ texto: 'Configuración', al: function () { irA('configuracion'); } });
@@ -271,7 +271,7 @@
     emitidos: 'EGRESOS EMITIDOS',
     pagadas: 'CUENTAS PAGADAS',
     solicitudes: 'SOLICITUDES',
-    informes: 'MIS INFORMES',
+    informes: 'MIS REGISTROS',
     contratistas: 'CONTRATISTAS',
     contratista: 'CONTRATISTA',
     informe: 'INFORME DE CUENTAS',
@@ -379,7 +379,8 @@
     if (tGente.length) bloque('CONTRATISTAS', tGente);
 
     var tOf = [];
-    if (puede('misInformes')) tOf.push(acceso('MIS INFORMES', 'Egresos, pagos, solicitudes y cierres por periodo, en PDF o Excel',
+    /* 06/10 · MIS INFORMES pasa a llamarse MIS REGISTROS en todo el ecosistema: es donde cada quien descarga lo que hizo */
+    if (puede('misInformes')) tOf.push(acceso('MIS REGISTROS', 'Lo que has hecho: egresos, pagos, solicitudes y cierres, por periodo. Descárgalo en PDF o Excel',
       'img/pdf.webp', function () { irA('informes'); }));
     if (puede('comunicados')) tOf.push(acceso('COMUNICADOS', 'Publica avisos con documentos: llegan como notificación al teléfono de los contratistas',
       'img/chat.webp', function () { irA('comunicados'); }));
