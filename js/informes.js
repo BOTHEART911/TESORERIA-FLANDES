@@ -179,7 +179,8 @@
     caja.appendChild(resumen);
     var descargas = K.nodo('<div class="rp-bajar">' +
       '<button type="button" class="kit-btn kit-btn--marca" data-f="pdf">' + K.icono('pdf', 16) + ' Descargar PDF</button>' +
-      '<button type="button" class="kit-btn kit-btn--plano" data-f="xlsx">' + K.icono('hoja', 16) + ' Descargar Excel</button></div>');
+      '<button type="button" class="kit-btn kit-btn--plano" data-f="xlsx">' + K.icono('hoja', 16) + ' Descargar Excel</button>' +
+      '<button type="button" class="kit-btn kit-btn--plano rp-gerencial" data-f="gerencial">' + K.icono('grafica', 16) + ' Informe gerencial</button></div>');
     caja.appendChild(descargas);
     var conteo = K.nodo('<p class="ct-conteo" aria-live="polite"></p>');
     caja.appendChild(conteo);
@@ -270,7 +271,7 @@
       var T = TIPOS[F.tipo];
       conteo.innerHTML = '<b>' + K.numero(f.length) + '</b> ' + (f.length === 1 ? T.uno : T.varios) +
         (HORA ? '<span class="ct-sello">' + K.icono('reloj', 13) + ' Al día a las ' + K.esc(O().horaCorta(HORA)) + '</span>' : '');
-      descargas.querySelectorAll('button').forEach(function (x) { x.disabled = !f.length; });
+      descargas.querySelectorAll('button').forEach(function (x) { x.disabled = x.getAttribute('data-f') === 'gerencial' ? !delPeriodo().length : !f.length; });
       pintarLista();
     }
 
@@ -311,7 +312,78 @@
     return op;
   }
 
+  /* ══════════════ 10/10 · INFORME GERENCIAL ══════════════
+     Las CUATRO listas juntas (egresos, pagos, solicitudes y cierres) del
+     periodo y de la persona escogida: el panorama completo de lo que hizo
+     en Tesorería. Sale de lo que ya está en el teléfono; la pieza
+     kit/gerencial.js se baja al tocar el botón. */
+  var QUE_HIZO = { egresos: 'Egreso elaborado', pagos: 'Pago registrado', solicitudes: 'Solicitud atendida', cierres: 'Cierre de cuenta' };
+  function delPeriodo() {
+    var out = [];
+    Object.keys(TIPOS).forEach(function (k) {
+      ((DATA && DATA[k]) || []).forEach(function (x) {
+        if (!x.fecha || (F.desde && x.fecha < F.desde) || (F.hasta && x.fecha > F.hasta) || (F.quien && x._q !== F.quien)) return;
+        out.push({ k: k, x: x });
+      });
+    });
+    return out;
+  }
+  function specGerencial() {
+    var regs = delPeriodo();
+    var nomQ = '';
+    if (F.quien) regs.some(function (r) { if (r.x._q === F.quien) { nomQ = r.x[TIPOS[r.k].quien]; return true; } return false; });
+    var persona = F.quien ? O().nombre(nomQ) : (!META.todas && META.yo ? O().nombre(META.yo) : (META.todas ? 'Todo el equipo de Tesorería' : 'Sin nombre'));
+    var rango = (F.desde ? O().fecha(F.desde).replace(/\//g, '-') : '') + (F.hasta && F.hasta !== F.desde ? ' a ' + O().fecha(F.hasta).replace(/\//g, '-') : '');
+    var eg = regs.filter(function (r) { return r.k === 'egresos'; }).map(function (r) { return r.x; });
+    var pg = regs.filter(function (r) { return r.k === 'pagos'; }).map(function (r) { return r.x; });
+    var girado = pg.reduce(function (a, x) { return a + (Number(x.valor) || 0); }, 0);
+    var fuentes = {};
+    pg.forEach(function (x) { var k = x.fuente || 'Sin fuente'; fuentes[k] = (fuentes[k] || 0) + (Number(x.valor) || 0); });
+    var pagados = eg.filter(function (x) { return x.pagada; }).length;
+    var secciones = [];
+    if (eg.length || pg.length) secciones.push({
+      titulo: 'Egresos y pagos',
+      intro: 'Los egresos elaborados en el periodo, cuántos ya están pagados, y lo girado por fuente de recursos.',
+      kpis: [
+        { etiqueta: 'Egresos elaborados', valor: K.numero(eg.length), nota: K.numero(pagados) + ' pagados · ' + K.numero(eg.length - pagados) + ' por pagar' },
+        { etiqueta: 'Sin comprobante', valor: K.numero(eg.filter(function (x) { return x.pagada && x.pdf && !x.comprobante; }).length), nota: 'pagados sin comprobante cargado', tono: 'aviso' },
+        { etiqueta: 'Valor girado', valor: K.pesos(girado), nota: K.numero(pg.length) + ' pagos · ' + K.numero(Object.keys(fuentes).length) + ' fuentes', tono: 'ok' }
+      ],
+      graficas: [
+        { titulo: 'Estado de los egresos', tipo: 'proporcion', datos: [{ etiqueta: 'Pagados', valor: pagados, tono: 'ok' }, { etiqueta: 'Por pagar', valor: eg.length - pagados, tono: 'aviso' }] },
+        { titulo: 'Valor girado por fuente', tipo: 'barrasH', formato: 'pesos', titular: false,
+          datos: Object.keys(fuentes).map(function (k) { return { etiqueta: k, valor: fuentes[k] }; }).sort(function (a, b) { return b.valor - a.valor; }) }
+      ]
+    });
+    return {
+      app: (window.MARCA && window.MARCA.TITULO) || 'Tesorería', persona: persona, desde: F.desde, hasta: F.hasta,
+      nombre: ['Informe gerencial Tesoreria', persona, rango].filter(Boolean).join(' '),
+      palabra: ['actuación', 'actuaciones'],
+      etiquetas: { tipo: 'Actuación', sujeto: 'Contratista', sujetos: 'contratistas', monto: 'Valor girado' },
+      tonos: { ok: 'Pagados o cerrados', aviso: 'Por pagar o pendientes', info: 'En trámite' },
+      registros: regs.map(function (r) {
+        var x = r.x, T = TIPOS[r.k];
+        return { fecha: x.fecha, tipo: QUE_HIZO[r.k], tono: T.tono(x) || 'info', sujeto: O().nombre(x.contratista) || '',
+                 monto: r.k === 'pagos' ? (Number(x.valor) || 0) : 0, ref: T.linea(x) };
+      }),
+      secciones: secciones
+    };
+  }
+  function gerencial(boton) { lanzarGerencial(specGerencial(), boton, 'actuaciones'); }
+
+  function lanzarGerencial(sp, boton, palabra) {
+    var ex = K.piezas.exportar;
+    if (!ex || !ex.aGerencial) { K.aviso('El informe gerencial no está disponible en esta versión. Recarga la app.', 'aviso', 5000); return; }
+    if (!sp.registros.length) { K.aviso('No hay ' + palabra + ' en ese periodo para armar el informe.', 'aviso', 4000); return; }
+    boton.disabled = true; boton.classList.add('kit-ocupado');
+    ex.aGerencial(sp).then(function (r) {
+      K.aviso('Informe gerencial descargado (' + r.paginas + ' páginas).', 'ok', 3500);
+    }, function (e) { K.aviso((e && e.message) || 'No se pudo armar el informe.', 'malo', 6000); })
+      .then(function () { boton.disabled = false; boton.classList.remove('kit-ocupado'); });
+  }
+
   function bajar(formato, boton) {
+    if (formato === 'gerencial') { gerencial(boton); return; }
     if (!K.piezas.exportar) { K.aviso('La descarga no está disponible en esta versión.', 'aviso'); return; }
     var T = TIPOS[F.tipo];
     var f = filas().slice().sort(function (a, c) { return String(a[T.quien]).localeCompare(String(c[T.quien]), 'es') || String(a.fecha).localeCompare(String(c.fecha)); });
@@ -333,6 +405,6 @@
     soltar: function () { DATA = null; CARGANDO = null; },
     olvidar: function () { DATA = null; META = null; CARGANDO = null; K.guardar.borrar(FILTRO_K); F = null; },
     _datos: function () { return DATA; }, _meta: function () { return META; }, _filas: filas, _filtro: function () { return F; },
-    _informe: informe, _textoRango: textoRango, TIPOS: TIPOS
+    _informe: informe, _textoRango: textoRango, TIPOS: TIPOS, _gerencial: specGerencial
   };
 }());
