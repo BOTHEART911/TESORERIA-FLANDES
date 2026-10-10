@@ -159,6 +159,7 @@
   function vista() {
     if (!F) F = leerFiltro();
     var caja = K.nodo('<div class="kit-ancho vista ct of rp rg tg"></div>');
+    if (K.piezas.exportar && K.piezas.exportar.prepararGerencial) K.piezas.exportar.prepararGerencial();   /* 10/10 · informe gerencial listo antes del toque */
     C.app.appendChild(caja);
     O().cabecera(caja, 'pdf', 'MIS REGISTROS', 'Lo que has hecho en Tesorería: egresos, pagos, solicitudes y cierres. Escoge el periodo y descárgalo en PDF o Excel.');
     var zR = K.nodo('<section class="kit-tarjeta rp-rango"></section>');
