@@ -234,7 +234,7 @@
       a.appendChild(ve);
     }
     if (x.comprobante) {
-      var vc = K.nodo('<button type="button" class="kit-btn kit-btn--plano">' + K.icono('ojo', 16) + ' Comprobante</button>');
+      var vc = K.nodo('<button type="button" class="kit-btn kit-btn--plano">' + K.icono('ojo', 16) + (x.comprobante === 2 ? ' Comprobante (2)' : ' Comprobante') + '</button>');
       vc.addEventListener('click', function () { abrir(x, 'comprobante'); });
       a.appendChild(vc);
     }
@@ -250,41 +250,67 @@
   function abrir(x, que, repintar) {
     var titulos = { egreso: 'Egreso ' + (x.egreso || ''), comprobante: 'Comprobante de pago · cuenta ' + x.informe, orden: 'Orden de pago ' + (x.orden || '') };
     var nombres = { egreso: 'EG_' + x.informe + '_' + x.contrato + '.pdf', comprobante: 'COMPROBANTE_' + x.informe + '_' + x.contrato, orden: 'OP_' + x.informe + '.pdf' };
-    K.piezas.visor.abrir([{ titulo: titulos[que], cargar: function () {
-      return O().docPorAccion('documento', { fila: x.fila, id: x.id, informe: x.informe, que: que }, nombres[que], function (r) {
-        if (r && r.cierre && r.cierre.nuevo) { x.cerrada = 1; K.aviso('Cierre de cuenta registrado.', 'ok', 2500); if (repintar) repintar(); }
-      });
-    } }]);
+    /* 15/10 · el comprobante puede traer dos imágenes: las dos van al visor */
+    var docs = [{ titulo: titulos[que], n: 1 }];
+    if (que === 'comprobante' && x.comprobante === 2) {
+      docs = [{ titulo: titulos[que] + ' · imagen 1', n: 1 }, { titulo: titulos[que] + ' · imagen 2', n: 2 }];
+    }
+    K.piezas.visor.abrir(docs.map(function (d) {
+      return { titulo: d.titulo, cargar: function () {
+        var datos = { fila: x.fila, id: x.id, informe: x.informe, que: que };
+        if (que === 'comprobante') datos.n = d.n;
+        return O().docPorAccion('documento', datos, nombres[que] + (d.n === 2 ? '_2' : ''), function (r) {
+          if (r && r.cierre && r.cierre.nuevo) { x.cerrada = 1; K.aviso('Cierre de cuenta registrado.', 'ok', 2500); if (repintar) repintar(); }
+        });
+      } };
+    }));
   }
 
+  /* 15/10 · DOS imágenes: la 1 obligatoria y la 2 opcional (Oss). Al
+     cambiar, la que se deje vacía se conserva; la 2 se puede quitar. */
   function subir(x, llave, repintar) {
+    var acepta = 'image/png,image/jpeg,image/webp,application/pdf';
     var cuerpo = K.nodo('<div class="tg-subir"><p class="formulario__nota">Cuenta <b>' + K.esc(x.informe) + '</b> de <b>' + K.esc(O().nombre(x.nombre)) +
-      '</b> · egreso ' + K.esc(x.egreso || '—') + ' · ' + K.esc(K.pesos(x.valor)) + '</p><div class="tg-subir__zona"></div>' +
-      '<p class="formulario__nota">PDF o imagen (JPG, PNG, WEBP), hasta 8 MB. Toca la casilla y pega con Ctrl+V si lo tienes copiado.</p></div>');
-    var adj = K.piezas.adjuntos.montar(cuerpo.querySelector('.tg-subir__zona'), { acepta: 'application/pdf,image/png,image/jpeg,image/webp', varios: false, maximoMB: 8, maximo: 1 });
+      '</b> · egreso ' + K.esc(x.egreso || '—') + ' · ' + K.esc(K.pesos(x.valor)) + '</p>' +
+      '<p class="tg-subir__rot"><b>Imagen 1</b> · ' + (x.comprobante ? 'déjala vacía para conservar la actual' : 'obligatoria') + '</p><div class="tg-subir__zona" data-n="1"></div>' +
+      '<p class="tg-subir__rot"><b>Imagen 2</b> · opcional' + (x.comprobante === 2 ? ', déjala vacía para conservar la actual' : '') + '</p><div class="tg-subir__zona" data-n="2"></div>' +
+      (x.comprobante === 2 ? '<label class="tg-subir__quitar"><input type="checkbox"> Quitar la imagen 2 actual</label>' : '') +
+      '<p class="formulario__nota">JPG, PNG, WEBP o PDF, hasta 8 MB cada una. Toca la casilla y pega con Ctrl+V si la tienes copiada.</p></div>');
+    var adj1 = K.piezas.adjuntos.montar(cuerpo.querySelector('[data-n="1"]'), { acepta: acepta, varios: false, maximoMB: 8, maximo: 1 });
+    var adj2 = K.piezas.adjuntos.montar(cuerpo.querySelector('[data-n="2"]'), { acepta: acepta, varios: false, maximoMB: 8, maximo: 1 });
+    var quitar = cuerpo.querySelector('.tg-subir__quitar input');
     var m = O().modal({
       titulo: x.comprobante ? 'Cambiar el comprobante' : 'Subir el comprobante de pago', cuerpo: cuerpo,
       botones: [{ texto: 'Cancelar', al: function () { m.cerrar(); } }, { texto: 'Guardar comprobante', icono: 'check', marca: true, al: guardar }],
-      alCerrar: function () { try { adj.desmontar(); } catch (e) {} }
+      alCerrar: function () { try { adj1.desmontar(); adj2.desmontar(); } catch (e) {} }
     });
+    var enviando = false;
     function guardar() {
-      var f = adj.archivos();
-      if (!f.length) { K.aviso('Adjunta el comprobante (PDF o imagen).', 'aviso', 3500); return; }
+      if (enviando) return;
+      var f1 = adj1.archivos(), f2 = adj2.archivos(), q2 = !!(quitar && quitar.checked);
+      if (!f1.length && !x.comprobante) { K.aviso('La imagen 1 del comprobante es obligatoria.', 'aviso', 3500); return; }
+      if (!f1.length && !f2.length && !q2) { K.aviso('Adjunta al menos una imagen para cambiar el comprobante.', 'aviso', 3500); return; }
+      enviando = true;
       m.botones[1].disabled = true;
-      adj.aBase64().then(function (l) {
-        var a = l[0];
-        return K.piezas.guardado.mientras(K.pedir('comprobante', { fila: llave.fila, id: llave.id, informe: llave.informe, archivo: 'data:' + a.tipo + ';base64,' + a.datos }, { ms: 120000 }), {
+      Promise.all([f1.length ? adj1.aBase64() : Promise.resolve([]), f2.length ? adj2.aBase64() : Promise.resolve([])]).then(function (ls) {
+        var datos = { fila: llave.fila, id: llave.id, informe: llave.informe };
+        if (ls[0][0]) datos.archivo = 'data:' + ls[0][0].tipo + ';base64,' + ls[0][0].datos;
+        if (ls[1][0]) datos.archivo2 = 'data:' + ls[1][0].tipo + ';base64,' + ls[1][0].datos;
+        if (q2 && !ls[1][0]) datos.quitar2 = true;
+        return K.piezas.guardado.mientras(K.pedir('comprobante', datos, { ms: 120000 }), {
           titulo: 'Subiendo el comprobante', sub: 'Queda en la carpeta de la cuenta.',
-          pasos: ['Subiendo el archivo…', 'Guardándolo en la carpeta de la cuenta…', 'Casi listo…'],
+          pasos: ['Subiendo las imágenes…', 'Guardándolas en la carpeta de la cuenta…', 'Casi listo…'],
           listo: { titulo: 'Comprobante guardado', paso: 'En la carpeta de la cuenta' }
         });
-      }).then(function () {
-        x.comprobante = 1;
+      }).then(function (r) {
+        /* CORE anterior al 15/10: no conoce la imagen 2 (no devuelve 'imagenes') */
+        if (r && r.imagenes === undefined && f2.length) K.aviso('Se guardó la imagen 1. La imagen 2 se podrá subir cuando se publique la versión nueva del servidor.', 'aviso', 8000);
+        x.comprobante = r && r.imagenes ? r.imagenes : (x.comprobante || 1);
         O().olvidarDocs();
         if (C.alPagadas) C.alPagadas(contar());
         m.cerrar();
         repintar();
-      }, function (e) { m.botones[1].disabled = false; K.aviso((e && e.message) || 'No se pudo subir el comprobante.', 'malo', 7000); });
+      }, function (e) { enviando = false; m.botones[1].disabled = false; K.aviso((e && e.message) || 'No se pudo subir el comprobante.', 'malo', 7000); });
     }
   }
 

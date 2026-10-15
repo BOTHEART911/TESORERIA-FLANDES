@@ -2723,6 +2723,8 @@
 .tg-paga input:checked + span b { color: var(--k-ok); }
 .tg-pg--falta { border-left: 4px solid var(--k-aviso); }
 .tg-subir { display: grid; gap: 10px; }
+.tg-subir__rot { margin: 4px 0 -4px; font-size: .9rem; color: var(--k-tinta-2, inherit); }
+.tg-subir__quitar { display: flex; align-items: center; gap: 8px; font-size: .9rem; }
 .tg-sol--pend { border-left: 4px solid var(--k-aviso); }
 .tg-sol__meta { margin: 6px 0 0; font-size: .8rem; color: var(--k-tinta-2); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .tg-sol__txt { margin: 8px 0; padding: 10px 12px; border-left: 3px solid var(--k-marca); background: var(--k-papel-2); border-radius: var(--k-r-sm);
