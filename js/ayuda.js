@@ -128,6 +128,10 @@
               var c = EG() && EG()._actual(); if (!c) return 'Abre una cuenta.';
               var s = c.sugerida;
               return s && s.f1 ? 'La última vez: **' + s.f1 + '**' + (s.f2 ? ' y **' + s.f2 + '**' : '') + '. Por eso ya viene escogida.' : 'No hay pagos anteriores de este contrato en la hoja PAGOS.';
+            } },
+          { texto: '¿Qué nombre sale si no tengo contrato?', responde: function () {
+              return 'Si el administrador te marcó **SIN CONTRATO**, hacia afuera (el contratista, su WhatsApp y los documentos) el egreso sale como **Usuario Egreso** y el pago como **Usuario Pagos** (o el texto que ADMIN haya puesto en **Textos sin contrato**).\n' +
+                'Por dentro queda registrado tu nombre real, como siempre. En la pantalla no cambia nada.';
             } }
         ]
       };
@@ -159,7 +163,9 @@
 
     pagadas: function () {
       return {
-        guia: 'Todas las cuentas pagadas. Arranca en **Sin comprobante**: las que tienen egreso de esta app y todavía no tienen el soporte del banco. **Subir comprobante** acepta PDF o imagen (botón, arrastrar o Ctrl+V). ' +
+        guia: 'Todas las cuentas pagadas. Arranca en **Sin comprobante**: las que tienen egreso de esta app y todavía no tienen el soporte del banco. ' +
+              '**Subir comprobante** recibe **dos imágenes**: la **Imagen 1** es obligatoria y la **Imagen 2** es opcional (PDF o imagen, con el botón, arrastrando o con Ctrl+V). ' +
+              'Si la cuenta tiene las dos, el botón dice **Comprobante (2)** y abre ambas en el visor. Los comprobantes ya no se comparten por enlace: solo se ven desde las apps. ' +
               '**Abrir egreso** lo muestra y deja descargarlo' + (K.norm((ctx().yo || {}).rol) === 'INVITADO' ? '; al abrirlo queda tu **cierre de cuenta**.' : '.'),
         botones: [
           { texto: '¿Qué estoy viendo?', responde: function () {
@@ -170,6 +176,13 @@
           { texto: '¿Cuántas faltan por comprobante?', responde: function () {
               var n = PG() && PG()._datos() ? PG().contar() : null;
               return n ? '**' + n.sin + '** con egreso de esta app sin comprobante, ' + n.con + ' con comprobante y ' + n.viejas + ' de la app anterior.' : 'Todavía está cargando.';
+            } },
+          { texto: '¿Cómo subo o cambio las dos imágenes?', responde: function () {
+              return 'Toca **Subir comprobante** (o **Cambiar comprobante** si ya tiene uno). La **Imagen 1** es obligatoria la primera vez; la **Imagen 2** es opcional, por ejemplo para el reverso o una segunda página del soporte.\n' +
+                'Al cambiar, la imagen que dejes vacía **se conserva**. Para borrar la segunda marca **Quitar la imagen 2 actual**. Cada imagen puede pesar hasta 8 MB (JPG, PNG, WEBP o PDF). Termina con **Guardar comprobante**.';
+            } },
+          { texto: '¿Quién ve el comprobante?', responde: function () {
+              return 'Ya no tiene enlace público. Lo ven **Tesorería** desde **Comprobante** en esta vista y el **contratista** en **MI CUENTA DRIVE** de su app. Nadie más puede abrirlo con un enlace.';
             } }
         ]
       };
