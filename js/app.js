@@ -159,7 +159,10 @@
               miFoto: miFoto, abrirFoto: abrirFoto,
               alFirma: function (r) { if (YO && r) YO.firma = r.id; },
               /* los números del inicio siguen a la bandeja sin otro viaje */
-              alCambiar: function (n) { if (ARRANQUE) ARRANQUE.bandeja = n; } };
+              alCambiar: function (n) { if (ARRANQUE) ARRANQUE.bandeja = n; },
+              /* 23/10 · al responder (o al cargar la lista) el contador del botón SOLICITUDES del inicio
+                 sigue a la lista real; antes quedaba con el número de la bandeja del arranque */
+              alSolicitudes: function (n) { if (window.EGRESOS && window.EGRESOS.ponerConteo) window.EGRESOS.ponerConteo('solicitudes', n && n.pendientes); } };
     MODULOS.forEach(function (m) { if (window[m]) window[m].configurar(c); });
 
     K.cuando('kit:foto', function (r) {

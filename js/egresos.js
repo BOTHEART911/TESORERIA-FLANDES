@@ -899,6 +899,8 @@
     configurar: function (o) { C = o || {}; },
     pendientes: listaPendientes, emitidos: listaEmitidos, detalle: detalle,
     cargar: cargar, contar: contar, olvidar: olvidar,
+    /* 23/10 · otra vista sabe un conteo más fresco (p. ej. SOLICITUDES tras responder): se parcha en memoria, sin viaje */
+    ponerConteo: function (llave, n) { if (B) { B.conteos = B.conteos || {}; B.conteos[llave] = Number(n) || 0; } },
     soltar: function () { B = null; CARGANDO = null; SEL = {}; },
     filtrar: function (f) { F.que = (f && f.que) || ''; F.sec = ''; F.busca = ''; F.eque = (f && f.eque) || ''; guardarFiltro(); },
     _pendientes: pendientes, _emitidos: emitidos, _bandeja: function () { return B; },
