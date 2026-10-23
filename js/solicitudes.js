@@ -9,13 +9,15 @@
    RESPONDER es una llamada: la solicitud pasa a RESPONDIDA, queda quién
    respondió y al contratista le llega por WhatsApp con el texto de
    siempre ("Atendiendo a tu solicitud… Nos permitimos responder…").
+   23/10: COPIAR RESPUESTA GENÉRICA (consulta por el pago antes del giro),
+   armada aquí con lo que ya trae la lista; ver generica().
    ============================================================ */
 (function () {
   'use strict';
 
   var K = window.KIT;
   var C = {};
-  var DATA = null, HORA = null, CARGANDO = null;
+  var DATA = null, HORA = null, CARGANDO = null, COPIA = false;
   var F = { que: 'PENDIENTE', busca: '' };
 
   function O() { return window.OFICINA; }
@@ -26,6 +28,7 @@
       return x;
     });
     HORA = new Date();
+    COPIA = !!(d && d.copiaRespuesta);   /* 23/10 · bandera del CORE (Tesoreria1023.gs) */
     if (C.alSolicitudes) C.alSolicitudes(contar());
   }
 
@@ -126,6 +129,12 @@
       w.href = 'https://wa.me/57' + String(x.telefono).replace(/\D/g, '').slice(-10);
       a.appendChild(w);
     }
+    /* 23/10 · respuesta genérica de pago: solo si el CORE ya trae los datos (bandera) */
+    if (COPIA && C.puede('solicitudes') && K.norm(((C.yo && C.yo()) || {}).rol || '') !== 'INVITADO') {
+      var cp = K.nodo('<button type="button" class="kit-btn kit-btn--plano tg-sol__copiar">' + K.icono('copiar', 16) + ' Copiar respuesta genérica</button>');
+      cp.addEventListener('click', function () { copiarGenerica(x); });
+      a.appendChild(cp);
+    }
     /* 25/09 · INVITADO solo consulta: no responde (el CORE también lo niega) */
     if (pend && C.puede('solicitudes') && K.norm(((C.yo && C.yo()) || {}).rol || '') !== 'INVITADO') {
       var r = K.nodo('<button type="button" class="kit-btn kit-btn--marca">' + K.icono('responder', 16) + ' Responder</button>');
@@ -134,6 +143,118 @@
     }
     t.appendChild(a);
     return t;
+  }
+
+  /* ============================================================
+     23/10 · RESPUESTA GENÉRICA DE PAGO
+     Consulta por el pago de una cuenta que ya tiene orden de pago y aún
+     no se gira. Se arma aquí con lo que ya trae la lista (sin viaje):
+     nombre, contrato y año, y la fecha de la orden de pago de SU cuenta.
+     Sin orden de pago no se copia. Con novedades (requerimiento abierto,
+     embargo) o con la cuenta ya PAGADA se avisa antes de copiar, porque
+     el texto dice que no hay novedades ni requerimientos pendientes.
+     ============================================================ */
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+  function fechaLarga(f) {
+    var m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(String(f || ''));
+    if (!m || +m[2] < 1 || +m[2] > 12) return '';
+    return (+m[1]) + ' de ' + MESES[+m[2] - 1] + ' de ' + m[3];
+  }
+
+  /** La cuenta por la que se pregunta: la del informe de la solicitud; si no dice, la última con orden sin pagar. */
+  function cuentaDe(x) {
+    var cs = x.cuentas || [];
+    if (x.informe) {
+      for (var i = 0; i < cs.length; i++) if (+cs[i].informe === +x.informe) return cs[i];
+    }
+    var con = cs.filter(function (c) { return c.orden; });
+    var sinPagar = con.filter(function (c) { return c.estado !== 'PAGADA'; });
+    var l = sinPagar.length ? sinPagar : con;
+    return l.length ? l[l.length - 1] : null;
+  }
+
+  function esEmpresa(n) { return /\b(S\.?\s?A\.?\s?S|LTDA|S\.\s?A\.?|E\.\s?U|SAS|FUNDACI[OÓ]N|CORPORACI[OÓ]N|ASOCIACI[OÓ]N|COOPERATIVA|CONSORCIO|UNI[OÓ]N TEMPORAL)\b/i.test(String(n || '')); }
+
+  /** { texto, cuenta, avisos[] } o { error } — sin tocar el servidor. */
+  function generica(x) {
+    var c = cuentaDe(x);
+    if (!c) return { error: 'Esta solicitud no tiene una cuenta con orden de pago: la respuesta genérica no aplica.' };
+    if (!c.orden) return { error: 'La cuenta ' + c.informe + ' todavía no tiene orden de pago: la respuesta genérica no aplica.' };
+    var fecha = fechaLarga(c.fechaOrden);
+    if (!fecha) return { error: 'La orden de pago ' + c.orden + ' no tiene fecha registrada: revísala antes de responder.' };
+    var nombre = String(x.nombre || '').trim().toUpperCase();
+    var anio = x.anio || '';
+    var avisos = (x.novedades || []).slice();
+    if (c.estado === 'PAGADA') avisos.push('La cuenta ' + c.informe + ' ya está PAGADA' + (c.detallePago ? ' (' + c.detallePago + ')' : '') + '.');
+    else if (c.estado && c.estado !== 'ORDEN DE PAGO' && c.estado !== 'EGRESO') avisos.push('La cuenta ' + c.informe + ' está en ' + c.estado + '.');
+    var conOrden = (x.cuentas || []).filter(function (k) { return k.orden && k.estado !== 'PAGADA'; });
+    if (!x.informe && conOrden.length > 1) avisos.push('Tiene ' + conOrden.length + ' cuentas con orden sin pagar: se usó la cuenta ' + c.informe + ' (orden del ' + c.fechaOrden + ').');
+    var T = [
+      'Respuesta a la solicitud ' + (x.codigo || ''),
+      '',
+      'Cordial saludo, ' + (esEmpresa(nombre) ? 'señores' : 'señor(a)') + ' ' + nombre + '.',
+      '',
+      'En atención a su consulta sobre el estado del pago del Contrato de Prestación de Servicios Profesionales No. ' + (x.contrato || '') + ' de ' + anio + ', la Tesorería Municipal le precisa lo siguiente:',
+      '',
+      '1. ESTADO DEL TRÁMITE',
+      'Su cuenta ya surtió las etapas de revisión, aprobación y causación contable, y cuenta con orden de pago emitida el ' + fecha + '. Se encuentra en la última fase del trámite: el giro de los recursos.',
+      '',
+      '2. LA ORDEN DE PAGO NO FIJA LA FECHA DEL PAGO',
+      'La emisión de la orden de pago y el mensaje con que se le notificó no constituyen una fecha de desembolso ni generan un plazo para efectuarlo. La oportunidad del giro está determinada por:',
+      '',
+      'a) Condiciones contractuales: la cláusula sexta (forma de pago) pacta pagos mensuales, mes vencido, previa presentación de los requisitos allí enumerados, entre ellos el comprobante de egreso (numeral 6). A su vez, la cláusula cuarta, en las obligaciones del Municipio, establece que el pago se efectúa en la forma y plazos estipulados (numeral 4) y una vez cumplidos los trámites administrativos y fiscales vigentes (numeral 6). El contrato no fija un término en días para el desembolso a partir de la orden de pago.',
+      'b) Condiciones presupuestales: de acuerdo con la cláusula séptima, el contrato se imputa a la vigencia fiscal ' + anio + ', con fuente en ingresos corrientes de libre destinación. La ejecución del gasto está sujeta al Programa Anual Mensualizado de Caja (PAC), que fija el monto máximo mensual de fondos disponibles para pagos, según el artículo 73 del Decreto 111 de 1996 (Estatuto Orgánico del Presupuesto), aplicable a las entidades territoriales por virtud del artículo 353 de la Constitución Política y del artículo 109 del mismo decreto.',
+      'c) Flujo de caja: la disponibilidad efectiva de recursos en la tesorería municipal.',
+      'd) Procedimientos internos de la Tesorería: la programación de los giros, que se aplica en igualdad de condiciones a todos los contratistas del municipio.',
+      '',
+      '3. EL COMPROBANTE DE EGRESO',
+      'El comprobante de egreso es un registro interno previo al giro y no se notifica al contratista. Puede verse en la aplicación CONTRATISTA, en ESTADO DE CUENTA. Como lo indica la aplicación al iniciar una solicitud a Tesorería, las consultas sobre el pago proceden una vez el egreso esté registrado.',
+      '',
+      '4. NOTIFICACIÓN DEL PAGO',
+      'Una vez se efectúe el pago, usted recibirá la notificación por WhatsApp y por correo electrónico. Si después de esa notificación el valor no se refleja en su cuenta bancaria, con gusto revisaremos el caso.',
+      '',
+      'A la fecha, su cuenta no presenta novedades ni requerimientos pendientes de su parte. Le agradecemos tener presente lo anterior.',
+      '',
+      'Atentamente,',
+      '',
+      'Tesorería Municipal',
+      'Alcaldía de Flandes'
+    ];
+    return { texto: T.join('\n'), cuenta: c, avisos: avisos };
+  }
+
+  function alPortapapeles(texto) {
+    if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(texto)['catch'](function () { return aMano(texto); });
+    return aMano(texto);
+  }
+  function aMano(texto) {
+    return new Promise(function (ok, mal) {
+      var ta = document.createElement('textarea');
+      ta.value = texto; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      var hecho = false; try { hecho = document.execCommand('copy'); } catch (e) {}
+      document.body.removeChild(ta);
+      if (hecho) ok(); else mal(new Error('El navegador no dejó copiar.'));
+    });
+  }
+
+  function copiarGenerica(x) {
+    var g = generica(x);
+    if (g.error) { K.aviso(g.error, 'aviso', 6000); return; }
+    var copiar = function () {
+      return alPortapapeles(g.texto).then(function () { if (K.vibrar) K.vibrar(8); K.aviso('Respuesta copiada', 'ok', 2200); },
+        function () { K.aviso('No se pudo copiar en este navegador.', 'malo', 5000); });
+    };
+    if (!g.avisos.length) { copiar(); return; }
+    var cuerpo = K.nodo('<div><p class="formulario__nota">Antes de copiar, revisa:</p><ul class="tg-sol__avisos"></ul>' +
+      '<p class="formulario__nota">La respuesta dice que <b>su cuenta no presenta novedades ni requerimientos pendientes</b>. Si no es así, ajusta el texto al pegarlo.</p></div>');
+    var ul = cuerpo.querySelector('ul');
+    g.avisos.forEach(function (t) { ul.appendChild(K.nodo('<li>' + K.icono('aviso', 14) + ' <span>' + K.esc(t) + '</span></li>')); });
+    var m = O().modal({
+      titulo: 'Respuesta genérica · ' + (x.codigo || ''), cuerpo: cuerpo,
+      botones: [{ texto: 'Cancelar', al: function () { m.cerrar(); } }, { texto: 'Copiar igual', icono: 'copiar', marca: true, al: function () { m.cerrar(); copiar(); } }]
+    });
   }
 
   function responder(x, repintar) {
@@ -167,6 +288,7 @@
     vista: vista, cargar: cargar, contar: contar,
     soltar: function () { DATA = null; CARGANDO = null; },
     olvidar: function () { DATA = null; CARGANDO = null; F = { que: 'PENDIENTE', busca: '' }; },
+    _generica: generica,
     _datos: function () { return DATA; }, _filtradas: function () { return (DATA || []).filter(function (x) { return pasa(x); }); }
   };
 }());

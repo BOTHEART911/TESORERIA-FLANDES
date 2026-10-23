@@ -2738,6 +2738,10 @@
 .tg-sol__resp { display: flex; gap: 8px; margin: 8px 0; padding: 10px 12px; background: var(--k-ok-fondo); border-radius: var(--k-r-md); font-size: .9rem; }
 .tg-sol__resp p { margin: 0 0 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tg-sol__resp small { color: var(--k-tinta-2); }
+/* 23/10 · respuesta genérica: avisos antes de copiar */
+.tg-sol__avisos { list-style: none; margin: 6px 0 10px; padding: 0; display: grid; gap: 6px; }
+.tg-sol__avisos li { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: var(--k-r-sm); background: var(--k-aviso-fondo, var(--k-papel-2)); font-size: .88rem; }
+.tg-sol__avisos li svg { flex: none; margin-top: 2px; color: var(--k-aviso); }
 .tg-firmas { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .tg-firma { display: grid; gap: 8px; align-content: start; }
 .tg-firma__img { min-height: 110px; display: grid; place-items: center; }

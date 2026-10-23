@@ -190,8 +190,21 @@
 
     solicitudes: function () {
       return {
-        guia: 'Lo que los contratistas le preguntan a Tesorería desde su app. Cada pendiente trae **sus cuentas** (orden, egreso y pago) para responder sin buscar. Tu respuesta le llega por WhatsApp y queda quién respondió.',
+        guia: 'Lo que los contratistas le preguntan a Tesorería desde su app. Cada solicitud trae **sus cuentas** (orden, egreso y pago) para responder sin buscar. Tu respuesta le llega por WhatsApp y queda quién respondió. ' +
+          'Si preguntan **cuándo les pagan** y la cuenta ya tiene orden de pago, toca **Copiar respuesta genérica**: copia la respuesta formal de la Tesorería con su nombre, contrato y año, y la fecha de la orden; la pegas en **Responder** o donde la necesites.',
         botones: [
+          { texto: '¿Qué copia la respuesta genérica?', responde: function () {
+              return 'La respuesta de la Tesorería a la consulta por el pago **antes del giro**, con los datos de ESA solicitud: **nombre**, **contrato y año** y la **fecha de la orden de pago** de su cuenta. ' +
+                'Explica que la orden no fija la fecha del pago (cláusulas cuarta, sexta y séptima del contrato; PAC del art. 73 del Decreto 111 de 1996, art. 353 de la Constitución y art. 109 del mismo decreto), qué es el comprobante de egreso y cómo se le avisa el pago.\n\n' +
+                '· Usa la cuenta que dice la solicitud; si no dice, la última con orden sin pagar.\n· **Sin orden de pago no copia** (no tiene fecha que poner).\n· Si tiene un **requerimiento abierto**, un **embargo** o la cuenta ya está **PAGADA**, te avisa antes: el texto dice que no hay novedades.';
+            } },
+          { texto: '¿A quién ya le aplica?', responde: function () {
+              var d = SO() && SO()._datos(); if (!d) return 'Todavía está cargando.';
+              var p = d.filter(function (x) { return x.estado === 'PENDIENTE'; });
+              if (!p.length) return 'No hay solicitudes pendientes.';
+              var g = SO()._generica;
+              return listaCorta(p, function (x) { var r = g(x); return '· **' + nombre(x.nombre) + '** (' + x.codigo + '): ' + (r.error ? 'no aplica' : (r.avisos.length ? 'aplica, con aviso' : 'aplica · orden del ' + r.cuenta.fechaOrden)); }, 8);
+            } },
           { texto: '¿Cuántas faltan?', responde: function () {
               var d = SO() && SO()._datos(); if (!d) return 'Todavía está cargando.';
               var p = d.filter(function (x) { return x.estado === 'PENDIENTE'; });
