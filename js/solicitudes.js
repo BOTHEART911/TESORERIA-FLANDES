@@ -288,6 +288,8 @@
     vista: vista, cargar: cargar, contar: contar,
     soltar: function () { DATA = null; CARGANDO = null; },
     olvidar: function () { DATA = null; CARGANDO = null; F = { que: 'PENDIENTE', busca: '' }; },
+    /* 24/10 · el asistente lleva a la lista con la pastilla ya puesta */
+    filtrar: function (f) { F.que = f && f.que !== undefined ? f.que : 'PENDIENTE'; F.busca = ''; },
     _generica: generica,
     _datos: function () { return DATA; }, _filtradas: function () { return (DATA || []).filter(function (x) { return pasa(x); }); }
   };
