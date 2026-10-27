@@ -71,7 +71,7 @@
   function recibir(d) {
     B = d || { pendientes: [], emitidos: [], destinaciones: [], reglas: {}, conteos: {} };
     [B.pendientes || [], B.emitidos || []].forEach(function (l) {
-      l.forEach(function (c) { c._t = norm([c.nombre, c.doc, c.contrato, c.sec, c.orden, c.egreso, c.informe, c.id].join(' ')); });
+      l.forEach(function (c) { c._t = norm([c.nombre, c.doc, c.contrato, c.sec, c.orden, c.egreso, c.informe, c.id].concat(c.fuentesFin || []).join(' ')); });
     });
     HORA = new Date();
     if (C.alCambiar) C.alCambiar(contar());
@@ -220,6 +220,16 @@
     return cab;
   }
 
+  /* 27/10 · Fuente(s) de FINANCIACIÓN que Contabilidad escogió en la orden de pago (presupuesto).
+     No es la FUENTE DE DESTINACIÓN que escoge Tesorería al girar (banco y cuenta). Órdenes viejas: nada. */
+  function fuentesFinNodo(c) {
+    var l = c.fuentesFin || [];
+    if (!l.length) return null;
+    return K.nodo('<div class="tg-ff" title="La escogió Contabilidad en la orden de pago">' + K.icono('hoja', 14) +
+      '<div><p class="tg-ff__t">' + (l.length > 1 ? 'Fuentes de financiación' : 'Fuente de financiación') + '</p>' +
+      l.map(function (f) { return '<p class="tg-ff__f">' + K.esc(f) + '</p>'; }).join('') + '</div></div>');
+  }
+
   function tarjetaError(c) {
     return K.nodo('<article class="kit-tarjeta ct-t op-t op-t--error"><h3 class="ct-t__n">' + K.esc(nombre(c.nombre) || 'Cuenta ' + c.informe) +
       '</h3><p class="op-aviso">' + K.icono('aviso', 14) + ' No se pudo armar esta cuenta: ' + K.esc(c.error) + '</p></article>');
@@ -318,6 +328,8 @@
       '<div><dt>Cobra</dt><dd>' + K.esc(pesos(c.cobro)) + '</dd></div>' +
       '<div><dt>Banco del contratista</dt><dd>' + K.esc(c.banco || '—') + (c.numeroCuenta ? ' <small>' + K.esc(c.tipoCuenta || '') + ' ' + K.esc(c.numeroCuenta) + '</small>' : '') + '</dd></div>' +
       '</dl>'));
+    var ffP = fuentesFinNodo(c);
+    if (ffP) t.appendChild(ffP);
     var cuota = c.embargo && c.embargo.cuota > 0 ? c.embargo.cuota : 0;
     t.appendChild(K.nodo('<div class="op-neto"><span>Descuentos <b>' + K.esc(pesos(c.retenido)) + '</b>' +
       (cuota ? ' · Embargo <b>' + K.esc(pesos(cuota)) + '</b>' : '') + '</span>' +
@@ -435,7 +447,7 @@
       K.pesosEnVivo(inp, function (v) { p.valor = Number(v) || 0; if (armado) alCambiar(true); });
       armado = true;
       g.appendChild(fv);
-      var ff = K.nodo('<label class="op-campo"><span>FUENTE DE DESTINACIÓN</span></label>');
+      var ff = K.nodo('<label class="op-campo"><span>FUENTE DE DESTINACIÓN <small>de dónde sale el dinero (banco)</small></span></label>');
       ff.appendChild(selectFuente(p.fuente, function (v) { p.fuente = v; alCambiar(); }));
       g.appendChild(ff);
       var fu = fuenteDe(p.fuente);
@@ -529,6 +541,8 @@
       '<div><dt>Cobra</dt><dd>' + K.esc(pesos(c.cobro)) + '</dd></div>' +
       (c.aplicadas || []).map(function (a) { return '<div><dt>' + K.esc(a.n) + '</dt><dd>− ' + K.esc(pesos(a.v)) + '</dd></div>'; }).join('') +
       '<div class="op-valores__cobro"><dt>Neto a girar</dt><dd>' + K.esc(pesos(c.neto)) + '</dd></div>' +
+      ((c.fuentesFin || []).length ? '<div class="tg-ff-fila"><dt>' + (c.fuentesFin.length > 1 ? 'Fuentes de financiación' : 'Fuente de financiación') + '</dt><dd>' +
+        c.fuentesFin.map(function (f) { return '<span>' + K.esc(f) + '</span>'; }).join('') + '</dd></div>' : '') +
       '</dl>' +
       (c.netoFuente === 'MOTOR'
         ? '<p class="op-nota op-nota--aviso">' + K.icono('info', 14) + ' Esta orden se hizo con la app anterior y no guardó el neto: lo calcula el mismo motor de Contabilidad' +
@@ -803,6 +817,8 @@
       '<div><dt>Contrato</dt><dd>' + K.esc(c.contrato || '—') + '</dd></div>' +
       '<div><dt>Orden de pago</dt><dd>' + K.esc(c.orden || '—') + '</dd></div>' +
       '</dl>'));
+    var ffE = fuentesFinNodo(c);
+    if (ffE) t.appendChild(ffE);
     /* a quién se le gira */
     t.appendChild(K.nodo('<div class="tg-benef-caja">' + K.icono('persona', 14) + ' <span><b>Cuenta del contratista:</b> ' +
       K.esc(c.banco || 'sin banco registrado') + (c.numeroCuenta ? ' · ' + K.esc(c.tipoCuenta || '') + ' <b>' + K.esc(c.numeroCuenta) + '</b>' : '') + '</span></div>'));
@@ -813,7 +829,7 @@
       zPago.appendChild(K.nodo('<p class="tg-pagos-em__t">Se gira <b>' + K.esc(pesos(d.total)) + '</b>' +
         (d.diferencia ? ' <span class="ct-marca op-marca--prio">' + K.esc(d.motivo ? d.motivo.tipo : 'DIFERENCIA') + ' · orden ' + K.esc(pesos(d.neto)) + '</span>' : '') + '</p>'));
       (d.pagos || []).forEach(function (p) {
-        zPago.appendChild(K.nodo('<p class="tg-banco">' + K.icono('moneda', 13) + ' ' + K.esc(pesos(p.valor)) + ' · ' + K.esc(p.fuente) + ' · ' + K.esc(p.banco) + ' ' + K.esc(p.numCuenta) + '</p>'));
+        zPago.appendChild(K.nodo('<p class="tg-banco">' + K.icono('moneda', 13) + ' <b>Pagado desde:</b> ' + K.esc(pesos(p.valor)) + ' · ' + K.esc(p.fuente) + ' · ' + K.esc(p.banco) + ' ' + K.esc(p.numCuenta) + '</p>'));
       });
       if (d.embargo && d.embargo.valor > 0) zPago.appendChild(K.nodo('<p class="tg-banco">' + K.icono('candado', 13) + ' Embargo ' + K.esc(pesos(d.embargo.valor)) + ' · ' + K.esc(d.embargo.cuenta ? d.embargo.cuenta.codigo : '') + '</p>'));
       else if (d.embargo && d.embargo.levantado) zPago.appendChild(K.nodo('<p class="op-nota op-nota--aviso">' + K.icono('aviso', 13) + ' Salió sin el descuento del embargo.</p>'));
