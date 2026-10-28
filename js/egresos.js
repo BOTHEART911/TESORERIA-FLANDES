@@ -68,12 +68,24 @@
 
   /* ══════════════ los datos: UN viaje ══════════════ */
 
+  function llaveBusqueda(c) { c._t = norm([c.nombre, c.doc, c.contrato, c.sec, c.orden, c.egreso, c.informe, c.id].concat(c.fuentesFin || []).join(' ')); }
+
   function recibir(d) {
     B = d || { pendientes: [], emitidos: [], destinaciones: [], reglas: {}, conteos: {} };
-    [B.pendientes || [], B.emitidos || []].forEach(function (l) {
-      l.forEach(function (c) { c._t = norm([c.nombre, c.doc, c.contrato, c.sec, c.orden, c.egreso, c.informe, c.id].concat(c.fuentesFin || []).join(' ')); });
-    });
+    [B.pendientes || [], B.emitidos || []].forEach(function (l) { l.forEach(llaveBusqueda); });
     HORA = new Date();
+    if (C.alCambiar) C.alCambiar(contar());
+  }
+
+  /* 28/10 · tras crear o rehacer el egreso el CORE devuelve solo la tarjeta de ESA cuenta:
+     se parcha en memoria (sale de pendientes y queda en emitidos) sin recargar la bandeja */
+  function parchar(t) {
+    if (!B || !t) return;
+    llaveBusqueda(t);
+    B.pendientes = (B.pendientes || []).filter(function (x) { return x.fila !== t.fila; });
+    var e = B.emitidos || (B.emitidos = []), i;
+    for (i = 0; i < e.length; i++) if (e[i].fila === t.fila) break;
+    if (i < e.length) e[i] = t; else e.unshift(t);
     if (C.alCambiar) C.alCambiar(contar());
   }
 
@@ -717,18 +729,22 @@
         var datos = { fila: c.fila, id: c.id, informe: c.informe, numero: numero, fecha: s.fecha, rehacer: !!rehacer,
                       pagos: s.pagos.map(function (p) { return { valor: Math.round(Number(p.valor) || 0), fuente: p.fuente }; }),
                       motivo: r.dif ? { tipo: s.motivo.tipo, texto: s.motivo.texto } : null,
-                      embargo: { aplicar: !!(s.embargo && s.embargo.aplicar) } };
+                      embargo: { aplicar: !!(s.embargo && s.embargo.aplicar) },
+                      /* 28/10 · viaja el ID (no el PDF) y solo la tarjeta de esta cuenta (no la bandeja) */
+                      sinPdf: true, soloFila: true };
         return K.piezas.guardado.mientras(K.pedir('crearEgreso', datos, { ms: 150000 }), {
           titulo: rehacer ? 'Rehaciendo el egreso' : 'Creando el egreso', sub: 'No cierres esta ventana hasta que termine.',
-          pasos: ['Cuadrando con la orden de pago…', 'Llenando la plantilla…', 'Guardando el PDF en la carpeta de la cuenta…', rehacer ? 'Casi listo…' : 'Avisando al grupo de Tesorería…'],
+          pasos: ['Cuadrando con la orden de pago…', 'Llenando la plantilla…', 'Guardando el PDF en la carpeta de la cuenta…', 'Casi listo…'],
           listo: { titulo: 'Egreso ' + numero + (rehacer ? ' rehecho' : ' creado'), paso: 'Cuenta en EGRESOS EMITIDOS' }
         }).then(function (res) {
           delete SEL[c.fila]; delete SEL[c.fila + 'R'];
-          var bytes = bytesDe(res.pdf);
+          /* CORE viejo (sin sinPdf) aún manda el PDF y la bandeja: se usan como antes */
+          var bytes = res.pdf ? bytesDe(res.pdf) : null;
           if (res.bandeja) recibir(res.bandeja);
+          else if (res.tarjeta) parchar(res.tarjeta);
           var nueva = emitidos().filter(function (x) { return x.fila === c.fila; })[0];
-          if (nueva) nueva._pdf = { bytes: bytes, nombre: res.nombre };
-          bajarPdf(bytes, res.nombre);
+          if (nueva && bytes) nueva._pdf = { bytes: bytes, nombre: res.nombre };
+          if (bytes) bajarPdf(bytes, res.nombre);
           var malos = [];
           if (res.grupo && !res.grupo.ok) malos.push('al grupo de Tesorería (' + (res.grupo.error || 'no salió') + ')');
           if (malos.length) K.aviso('El egreso quedó creado, pero no se pudo avisar ' + malos.join(' ni ') + '.', 'aviso', 9000);
@@ -736,7 +752,10 @@
           else if (res.embargo && res.embargo.cumple) K.aviso('Con este egreso el embargo llegó a su tope: ya no se descuenta más.', 'ok', 7000);
           /* 05/10 · se queda en la lista de donde vino (la bandeja ya llegó con la respuesta: sin otro viaje) */
           C.irA(rehacer ? 'emitidos' : 'pendientes');
-          setTimeout(function () { verEgreso(nueva || { egreso: numero, _pdf: { bytes: bytes, nombre: res.nombre } }); }, 450);
+          setTimeout(function () {
+            verEgreso(nueva || { egreso: numero, informe: c.informe, contrato: c.contrato, tEgreso: res.tEgreso,
+                                 _pdf: bytes ? { bytes: bytes, nombre: res.nombre } : null });
+          }, 450);
         });
       })['catch'](function (e) { K.aviso((e && e.message) || 'No se pudo crear el egreso.', 'malo', 9000); })
       .then(function () { boton.disabled = false; });
