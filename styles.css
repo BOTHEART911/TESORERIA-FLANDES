@@ -2797,3 +2797,9 @@
 .op-valores .tg-ff-fila dt { color: var(--k-ok); }
 .op-valores .tg-ff-fila dd span { display: block; font-weight: 600; font-size: .88rem; line-height: 1.35; }
 .op-campo span small { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--k-apagado); }
+
+/* 30/10 · la orden viene de varias fuentes de financiación: marca y valor por fuente */
+.tg-marca--ff { color: var(--k-ok); border-color: var(--k-ok); background: var(--k-ok-fondo); }
+.tg-ff--varias { border-left-width: 4px; }
+.tg-ff__f { display: flex; justify-content: space-between; gap: 8px; }
+.tg-ff__f b { flex: 0 0 auto; font-variant-numeric: tabular-nums; }

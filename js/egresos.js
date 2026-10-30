@@ -219,6 +219,8 @@
     if (c.cedido) m.push('<span class="ct-marca op-marca--rp">' + K.icono('llave', 11) + ' CEDIDO' + (c.rpCesionUsado ? ' · RP CESIÓN' : '') + '</span>');
     if (c.netoFuente === 'MOTOR') m.push('<span class="ct-marca tg-marca--motor" title="Orden hecha con la app anterior: el neto lo calcula el motor de Contabilidad">' + K.icono('info', 11) + ' ORDEN APP ANTERIOR</span>');
     if (c.ultimo) m.push('<span class="ct-marca">ÚLTIMA CUENTA</span>');
+    /* 30/10 · la orden viene de más de una fuente de financiación */
+    if ((c.fuentesFin || []).length > 1) m.push('<span class="ct-marca tg-marca--ff" title="Contabilidad dividió el débito de la orden en varias fuentes">' + K.icono('hoja', 11) + ' ' + c.fuentesFin.length + ' FUENTES DE FINANCIACIÓN</span>');
     if (c.embargo && c.embargo.cuota > 0) m.push('<span class="ct-marca tg-marca--emb">' + K.icono('candado', 11) + ' EMBARGO · ' + K.esc(pesos(c.embargo.cuota)) + '</span>');
     return m.join('');
   }
@@ -234,12 +236,15 @@
 
   /* 27/10 · Fuente(s) de FINANCIACIÓN que Contabilidad escogió en la orden de pago (presupuesto).
      No es la FUENTE DE DESTINACIÓN que escoge Tesorería al girar (banco y cuenta). Órdenes viejas: nada. */
+  /* 30/10 · con varias fuentes sale el valor de cada una (c.fuentesValores, mismo orden) */
+  function ffValor(c, i) { var v = (c.fuentesValores || [])[i]; return v > 0 ? pesos(v) : ''; }
   function fuentesFinNodo(c) {
     var l = c.fuentesFin || [];
     if (!l.length) return null;
-    return K.nodo('<div class="tg-ff" title="La escogió Contabilidad en la orden de pago">' + K.icono('hoja', 14) +
-      '<div><p class="tg-ff__t">' + (l.length > 1 ? 'Fuentes de financiación' : 'Fuente de financiación') + '</p>' +
-      l.map(function (f) { return '<p class="tg-ff__f">' + K.esc(f) + '</p>'; }).join('') + '</div></div>');
+    var varias = l.length > 1;
+    return K.nodo('<div class="tg-ff' + (varias ? ' tg-ff--varias' : '') + '" title="La escogió Contabilidad en la orden de pago">' + K.icono('hoja', 14) +
+      '<div><p class="tg-ff__t">' + (varias ? 'Varias fuentes de financiación · ' + l.length : 'Fuente de financiación') + '</p>' +
+      l.map(function (f, i) { var v = ffValor(c, i); return '<p class="tg-ff__f"><span>' + K.esc(f) + '</span>' + (v ? '<b>' + K.esc(v) + '</b>' : '') + '</p>'; }).join('') + '</div></div>');
   }
 
   function tarjetaError(c) {
@@ -554,7 +559,7 @@
       (c.aplicadas || []).map(function (a) { return '<div><dt>' + K.esc(a.n) + '</dt><dd>− ' + K.esc(pesos(a.v)) + '</dd></div>'; }).join('') +
       '<div class="op-valores__cobro"><dt>Neto a girar</dt><dd>' + K.esc(pesos(c.neto)) + '</dd></div>' +
       ((c.fuentesFin || []).length ? '<div class="tg-ff-fila"><dt>' + (c.fuentesFin.length > 1 ? 'Fuentes de financiación' : 'Fuente de financiación') + '</dt><dd>' +
-        c.fuentesFin.map(function (f) { return '<span>' + K.esc(f) + '</span>'; }).join('') + '</dd></div>' : '') +
+        c.fuentesFin.map(function (f, i) { var v = ffValor(c, i); return '<span>' + K.esc(f) + (v ? ' · <b>' + K.esc(v) + '</b>' : '') + '</span>'; }).join('') + '</dd></div>' : '') +
       '</dl>' +
       (c.netoFuente === 'MOTOR'
         ? '<p class="op-nota op-nota--aviso">' + K.icono('info', 14) + ' Esta orden se hizo con la app anterior y no guardó el neto: lo calcula el mismo motor de Contabilidad' +

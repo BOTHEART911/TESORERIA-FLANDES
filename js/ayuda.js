@@ -87,6 +87,7 @@
     pendientes: function () {
       return {
         guia: 'Las cuentas con **orden de pago**. El valor a girar es el **neto de la orden**: el que guardó Contabilidad o, si la orden se hizo con la app anterior, el que calcula el mismo motor (marca ORDEN APP ANTERIOR: compáralo con la orden en papel). ' +
+              'Si Contabilidad dividió el débito de la orden, la tarjeta trae la marca **N FUENTES DE FINANCIACIÓN** y el bloque verde dice cuánto sale de cada fuente. ' +
               'Toca **Hacer egreso**; **Orden de pago** la abre en el visor.',
         botones: [
           { texto: '¿Qué estoy viendo?', responde: function () {
