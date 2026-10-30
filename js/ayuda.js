@@ -111,7 +111,7 @@
     egreso: function () {
       return {
         guia: 'El egreso de UNA cuenta. Escribe solo los dígitos del **N° de egreso** (1234 → 2026001234), la **fecha** (hoy por defecto), el **valor pagado** y la **fuente** (el banco y la cuenta salen de la configuración). ' +
-              'Con dos fuentes, agrega el segundo pago. Si el contrato tiene **embargo**, llega descontado con un check: desmárcalo solo si en este egreso no aplica (y levántalo en la tarjeta del contratista). Si lo girado no es el neto de la orden por otra razón (pago parcial, situación de fondos), escoge el motivo: sale como observación en el PDF. Girar más que la orden no se puede.',
+              'Si el dinero sale de varias fuentes, agrega el segundo y, si hace falta, el tercer pago (hasta 3 bancos); la suma de los pagos debe cuadrar con lo que se gira. Si el contrato tiene **embargo**, llega descontado con un check: desmárcalo solo si en este egreso no aplica (y levántalo en la tarjeta del contratista). Si lo girado no es el neto de la orden por otra razón (pago parcial, situación de fondos), escoge el motivo: sale como observación en el PDF. Girar más que la orden no se puede.',
         botones: [
           { texto: '¿Cuadra con la orden?', responde: function () {
               var c = EG() && EG()._actual(); if (!c) return 'Abre una cuenta.';

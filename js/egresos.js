@@ -138,6 +138,9 @@
 
   /* ══════════════ el formulario de cada cuenta ══════════════ */
 
+  /** 30/10 · hasta 3 pagos (bancos) por egreso; el CORE exige el mismo tope. */
+  var MAX_PAGOS = 3;
+
   function selDe(c, rehacer) {
     var k = c.fila + (rehacer ? 'R' : '');
     if (SEL[k]) return SEL[k];
@@ -146,6 +149,7 @@
     var s = { numero: '', fecha: hoyTxt(), pagos: [{ valor: c.neto || 0, fuente: sug.f1 || '' }], motivo: { tipo: '', texto: '' },
               embargo: { aplicar: !!(c.embargo && c.embargo.cuota > 0) } };
     if (sug.f2 && fuenteDe(sug.f2)) s.pagos.push({ valor: 0, fuente: sug.f2 });
+    if (sug.f3 && fuenteDe(sug.f3) && s.pagos.length === 2) s.pagos.push({ valor: 0, fuente: sug.f3 });
     s.pagos[0].valor = Math.max(0, (c.neto || 0) - embargoDe(c, s));
     if (rehacer && d) {
       s.numero = String(d.numero || '').slice(4).replace(/^0+/, '');
@@ -451,7 +455,7 @@
     return sel;
   }
 
-  /** El bloque de pagos (1 o 2), el total y el motivo. Lo usa el egreso y el pago de un egreso viejo. */
+  /** El bloque de pagos (1 a 3), el total y el motivo. Lo usa el egreso y el pago de un egreso viejo. */
   function formularioPagos(c, s, zona, legado, alCambiar) {
     zona.innerHTML = '';
     s.pagos.forEach(function (p, i) {
@@ -471,15 +475,15 @@
       g.appendChild(K.nodo('<p class="tg-banco">' + (fu
         ? K.icono('moneda', 13) + ' <b>BANCO</b> ' + K.esc(fu.banco) + ' · <b>N° CUENTA</b> ' + K.esc(fu.numCuenta)
         : K.icono('info', 13) + ' El banco y el N° de cuenta salen de la fuente.') + '</p>'));
-      if (i === 1) {
-        var q = K.nodo('<button type="button" class="kit-btn kit-btn--plano op-mini">' + K.icono('basura', 14) + ' Quitar el pago 2</button>');
-        q.addEventListener('click', function () { s.pagos.splice(1, 1); alCambiar(); });
+      if (i >= 1) {
+        var q = K.nodo('<button type="button" class="kit-btn kit-btn--plano op-mini">' + K.icono('basura', 14) + ' Quitar el pago ' + (i + 1) + '</button>');
+        q.addEventListener('click', function () { s.pagos.splice(i, 1); alCambiar(); });
         g.appendChild(q);
       }
       zona.appendChild(g);
     });
-    if (s.pagos.length < 2) {
-      var mas = K.nodo('<button type="button" class="kit-btn kit-btn--plano op-mini">' + K.icono('mas', 14) + ' Agregar un segundo pago (otra fuente)</button>');
+    if (s.pagos.length < MAX_PAGOS) {
+      var mas = K.nodo('<button type="button" class="kit-btn kit-btn--plano op-mini">' + K.icono('mas', 14) + ' Agregar un ' + (s.pagos.length === 1 ? 'segundo' : 'tercer') + ' pago (otra fuente)</button>');
       mas.addEventListener('click', function () {
         var r = revisar(c, s, legado);
         s.pagos.push({ valor: Math.max(0, r.dif), fuente: '' });
@@ -672,7 +676,9 @@
       l.push([cred.codigo, cred.nombre, debito, 0]);
       var deb = 0, cre = 0;
       l.forEach(function (x) { deb += x[2]; cre += x[3]; });
-      var pres = s.pagos.length < 2 ? [[c.cdp, c.rp, c.cobro]] : [[c.cdp, c.rp, c.cobro - (Number(s.pagos[1].valor) || 0)], [c.cdp, c.rp, Number(s.pagos[1].valor) || 0]];
+      var resto = c.cobro, pres = [];
+      s.pagos.slice(1).forEach(function (p) { var v = Number(p.valor) || 0; resto -= v; pres.push([c.cdp, c.rp, v]); });
+      pres.unshift([c.cdp, c.rp, resto]);
       mov.querySelector('.op-mov').innerHTML =
         '<p class="tg-mov__t">Imputación presupuestal</p>' +
         '<div class="op-tabla tg-tabla3" role="table"><div class="op-tabla__f op-tabla__cab" role="row"><span>CDP</span><span>RP</span><span>Valor</span></div>' +
