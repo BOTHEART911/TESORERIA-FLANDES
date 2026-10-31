@@ -89,6 +89,15 @@
     if (C.alCambiar) C.alCambiar(contar());
   }
 
+  /* 31/10 · tras pagar el CORE dice solo "esta fila ya no está en EMITIDOS": se quita en memoria
+     y el conteo de pagadas sin comprobante sube si corresponde (sin recargar la bandeja) */
+  function quitarEmitido(fila, sinComprobante) {
+    if (!B) return;
+    B.emitidos = (B.emitidos || []).filter(function (x) { return x.fila !== fila; });
+    if (sinComprobante) { B.conteos = B.conteos || {}; B.conteos.sinComprobante = (Number(B.conteos.sinComprobante) || 0) + Number(sinComprobante); }
+    if (C.alCambiar) C.alCambiar(contar());
+  }
+
   function cargar(fresco, fondo) {
     if (B && !fresco) return Promise.resolve(B);
     if (CARGANDO && !fresco) {
@@ -926,15 +935,20 @@
     }).then(function (si) {
       if (!si) { ch.checked = false; return; }
       ch.disabled = true;
+      /* 31/10 · solo la fila: la cuenta sale de EMITIDOS en memoria (sin rearmar la bandeja) */
+      datos.soloFila = true;
       return K.piezas.guardado.mientras(K.pedir('pagar', datos, { ms: 90000 }), {
-        titulo: 'Marcando la cuenta paga', sub: 'Estamos guardando el pago y avisando al contratista.',
-        pasos: ['Pasando a PAGADA…', 'Apuntando en PAGOS…', 'Avisando al contratista…'],
-        listo: { titulo: 'Cuenta pagada', paso: 'Contratista avisado' }
+        titulo: 'Marcando la cuenta paga', sub: 'Estamos guardando el pago.',
+        pasos: ['Pasando a PAGADA…', 'Apuntando en PAGOS…', 'Dejando listo el aviso al contratista…'],
+        listo: { titulo: 'Cuenta pagada', paso: 'Aviso al contratista en camino' }
       }).then(function (res) {
         delete SEL[c.fila];
+        /* CORE viejo (sin soloFila) aún manda la bandeja: se usa como antes */
         if (res.bandeja) recibir(res.bandeja);
+        else if (res.quitar) quitarEmitido(res.fila || c.fila, res.sinComprobante);
         if (window.PAGADAS) window.PAGADAS.soltar();
         if (res.aviso && !res.aviso.ok) K.aviso('La cuenta quedó PAGADA, pero no se pudo avisar al contratista (' + (res.aviso.error || 'no salió') + ').', 'aviso', 9000);
+        else if (res.aviso && res.aviso.enCola) K.aviso('Listo: cuenta PAGADA. El aviso al contratista sale en unos minutos.', 'ok', 4000);
         else K.aviso('Listo: cuenta PAGADA y contratista avisado.', 'ok', 3500);
         repintar();
       });

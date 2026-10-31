@@ -140,7 +140,7 @@
 
     emitidos: function () {
       return {
-        guia: 'Los egresos hechos que esperan el pago. Revisa la **cuenta del contratista** y toca **Marcar cuenta paga**: la cuenta pasa a PAGADA, queda en PAGOS y al contratista le llega el aviso con el egreso (notificación, correo y WhatsApp). ' +
+        guia: 'Los egresos hechos que esperan el pago. Revisa la **cuenta del contratista** y toca **Marcar cuenta paga**: la cuenta pasa a PAGADA, queda en PAGOS y al contratista le llega el aviso con el egreso (notificación, correo y WhatsApp) en los minutos siguientes. ' +
               'Los egresos de la app anterior piden aquí lo que se giró.',
         botones: [
           { texto: '¿Cuánto hay por pagar?', responde: function () {
