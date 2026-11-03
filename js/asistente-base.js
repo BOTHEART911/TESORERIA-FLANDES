@@ -714,16 +714,37 @@ window.ASISTENTE_BASE = [
 "id": "TS-GENERICA",
 "app": "TESORERIA",
 "vista": "solicitudes",
-"titulo": "¿Qué copia la respuesta genérica?",
+"titulo": "¿Qué copia la respuesta genérica tiempo?",
 "frases": [
 "respuesta generica",
+"respuesta generica tiempo",
 "copiar respuesta generica",
 "cuando me pagan",
 "respuesta formal del pago",
 "texto para cuando preguntan por el pago"
 ],
-"respuesta": "**Copiar respuesta genérica** copia la respuesta formal de la Tesorería a la consulta por el pago **antes del giro**, con el **nombre**, el **contrato y año** y la **fecha de la orden de pago**. Sin orden de pago no copia. Si hay un requerimiento abierto, un embargo o la cuenta ya está pagada, te avisa antes.",
+"respuesta": "**Respuesta genérica tiempo** arma la respuesta formal de la Tesorería a la consulta por el pago **antes del giro**, con el **nombre**, el **contrato y año** y la **fecha de la orden de pago**; la ajustas y tocas **Copiar** o **Responder**. Sin orden de pago no aplica. Si hay un requerimiento abierto, un embargo o la cuenta ya está pagada, te avisa antes. El texto se cambia en **CONFIGURACIÓN → RESPUESTAS RÁPIDAS**.",
 "accion": "",
+"estado": "",
+"activo": true,
+"orden": 39
+},
+{
+"id": "TS-DESCUENTOS",
+"app": "TESORERIA",
+"vista": "solicitudes",
+"titulo": "¿Qué arma la respuesta genérica descuentos?",
+"frases": [
+"respuesta generica descuentos",
+"por que me descontaron",
+"estampillas",
+"procultura",
+"adulto mayor",
+"reteica",
+"descuentos de la orden"
+],
+"respuesta": "**Respuesta genérica descuentos** lista los descuentos de **la orden de pago** del contratista (nombre, %, base y valor, total y neto) y explica que las **estampillas Procultura y Adulto Mayor** se liquidan una vez sobre el valor del contrato inicial o de la adición, y la **ReteICA** en todas las cuentas sobre el valor cobrado. Le indica que lo ve en **ESTADO DE CUENTA**. Sin orden de pago no aplica. El texto se cambia en **CONFIGURACIÓN → RESPUESTAS RÁPIDAS**.",
+"accion": "ir:solPend",
 "estado": "",
 "activo": true,
 "orden": 39

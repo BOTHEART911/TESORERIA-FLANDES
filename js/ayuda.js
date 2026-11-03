@@ -192,12 +192,17 @@
     solicitudes: function () {
       return {
         guia: 'Lo que los contratistas le preguntan a Tesorería desde su app. Cada solicitud trae **sus cuentas** (orden, egreso y pago) para responder sin buscar. Tu respuesta le llega por WhatsApp y queda quién respondió. ' +
-          'Si preguntan **cuándo les pagan** y la cuenta ya tiene orden de pago, toca **Copiar respuesta genérica**: copia la respuesta formal de la Tesorería con su nombre, contrato y año, y la fecha de la orden; la pegas en **Responder** o donde la necesites.',
+          'Respuestas rápidas: **Respuesta genérica tiempo** (cuándo le pagan, con la fecha de la orden) y **Respuesta genérica descuentos** (estampillas y ReteICA de su orden de pago). Cada una abre el texto ya armado con sus datos: lo ajustas si hace falta y tocas **Copiar** o **Responder**. Los textos se cambian en **CONFIGURACIÓN → RESPUESTAS RÁPIDAS**.',
         botones: [
           { texto: '¿Qué copia la respuesta genérica?', responde: function () {
               return 'La respuesta de la Tesorería a la consulta por el pago **antes del giro**, con los datos de ESA solicitud: **nombre**, **contrato y año** y la **fecha de la orden de pago** de su cuenta. ' +
                 'Explica que la orden no fija la fecha del pago (cláusulas cuarta, sexta y séptima del contrato; PAC del art. 73 del Decreto 111 de 1996, art. 353 de la Constitución y art. 109 del mismo decreto), qué es el comprobante de egreso y cómo se le avisa el pago.\n\n' +
                 '· Usa la cuenta que dice la solicitud; si no dice, la última con orden sin pagar.\n· **Sin orden de pago no copia** (no tiene fecha que poner).\n· Si tiene un **requerimiento abierto**, un **embargo** o la cuenta ya está **PAGADA**, te avisa antes: el texto dice que no hay novedades.';
+            } },
+          { texto: '¿Qué arma la de descuentos?', responde: function () {
+              return 'La respuesta a quien pregunta **por qué le descontaron** (o qué le van a descontar): lista los descuentos de **su orden de pago** (nombre, %, base y valor), el valor cobrado, el total y el neto. ' +
+                'Explica que las **estampillas Procultura y Adulto Mayor** se liquidan una vez sobre el valor del **contrato inicial o de la adición** (primer pago de cada uno) y que la **ReteICA** va en todas las cuentas sobre el valor cobrado; cita la cláusula cuarta (num. 6) y la quinta, y le dice que lo ve en **ESTADO DE CUENTA**.\n\n' +
+                '· **Sin orden de pago no aplica** (los descuentos aún no están liquidados).\n· Si la cuenta no lleva estampillas, te avisa en cuál se cobraron.';
             } },
           { texto: '¿A quién ya le aplica?', responde: function () {
               var d = SO() && SO()._datos(); if (!d) return 'Todavía está cargando.';

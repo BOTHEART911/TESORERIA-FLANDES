@@ -2739,6 +2739,14 @@
 .tg-sol__resp p { margin: 0 0 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .tg-sol__resp small { color: var(--k-tinta-2); }
 /* 23/10 · respuesta genérica: avisos antes de copiar */
+/* 03/11 · respuestas rápidas: vista previa y editor en Configuración */
+.tg-resp textarea, .tg-resp-item__txt { width: 100%; min-height: 220px; resize: vertical; font: inherit; font-size: .88rem; line-height: 1.45;
+  padding: 10px 12px; border: 1px solid var(--k-linea); border-radius: var(--k-r-sm); background: var(--k-papel); color: var(--k-tinta); box-sizing: border-box; }
+.tg-resp__cuenta { display: block; margin-top: 6px; }
+.tg-resp__cuenta svg { vertical-align: -2px; margin-right: 4px; }
+.tg-resp-item { display: grid; gap: 8px; }
+.tg-chip--btn { cursor: pointer; border: 0; font: inherit; font-size: .78rem; }
+.tg-chip--btn:hover { filter: brightness(.95); }
 .tg-sol__avisos { list-style: none; margin: 6px 0 10px; padding: 0; display: grid; gap: 6px; }
 .tg-sol__avisos li { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: var(--k-r-sm); background: var(--k-aviso-fondo, var(--k-papel-2)); font-size: .88rem; }
 .tg-sol__avisos li svg { flex: none; margin-top: 2px; color: var(--k-aviso); }

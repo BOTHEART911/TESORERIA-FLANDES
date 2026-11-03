@@ -15,6 +15,10 @@
        solo como observación).
      · RETENCIONES (solo con el permiso 'retenciones'): las mismas de
        Contabilidad; el editor es el mismo.
+     · RESPUESTAS RÁPIDAS (03/11): los textos que SOLICITUDES copia o envía
+       (tiempo, descuentos y las que se agreguen), con marcadores {nombre}…
+       Llave RESPUESTAS_TESORERIA de CONFIG (Tesoreria1103.gs). Solo se pinta
+       si el CORE ya las manda (CFG.respuestas).
    Guardar es una llamada por bloque ('configGuardar', 'firmaFijaGuardar',
    'firmaGuardar') y la respuesta trae la configuración nueva.
    ============================================================ */
@@ -82,10 +86,12 @@
     zona.appendChild(bloqueFirmantes());
     zona.appendChild(bloqueReglas());
     if (CFG.puedeRetenciones) zona.appendChild(bloqueRetenciones());
+    if (CFG.respuestas) zona.appendChild(bloqueRespuestas());   /* 03/11 */
   }
 
   function alGuardar(r, zona) {
     CFG = r.config || CFG;
+    if (window.SOLIS && CFG.respuestas) window.SOLIS.ponerRespuestas(CFG.respuestas);   /* 03/11 · se parcha la lista, sin recargarla */
     if (window.EGRESOS) window.EGRESOS.soltar();   /* la bandeja trae fuentes, reglas y firmas: se vuelve a pedir */
     pintar(zona);
   }
@@ -524,6 +530,90 @@
     var g = K.nodo('<button type="button" class="kit-btn kit-btn--marca">' + K.icono('check', 16) + ' Guardar reglas</button>');
     g.addEventListener('click', function () { guardar('reglas', { cuentaDiferencia: r.cuentaDiferencia, motivos: r.motivos, ceroPermitido: r.ceroPermitido }, g); });
     acc.appendChild(g);
+    s.appendChild(acc);
+    return s;
+  }
+
+  /* ══════════════ RESPUESTAS RÁPIDAS (03/11) ══════════════ */
+
+  function bloqueRespuestas() {
+    var r = copia(CFG.respuestas || {});
+    var fijas = CFG.respuestasFijas || ['TIEMPO', 'DESCUENTOS'];
+    var marcas = CFG.respuestasMarcadores || [];
+    var invitado = K.norm(((C.yo && C.yo()) || {}).rol || '') === 'INVITADO';
+    var s = seccion('comentario', 'RESPUESTAS RÁPIDAS',
+      'Los textos que salen en <b>SOLICITUDES</b> para copiar o responder. Los <b>marcadores</b> entre llaves se cambian solos por los datos de cada contratista: toca uno para ponerlo donde está el cursor.');
+    var zona = K.nodo('<div class="cf-ret tg-resps"></div>');
+    s.appendChild(zona);
+    var ultimo = null;   /* el último texto tocado: ahí entra el marcador */
+    function orden() {
+      var ks = Object.keys(r);
+      return fijas.filter(function (k) { return ks.indexOf(k) >= 0; }).concat(ks.filter(function (k) { return fijas.indexOf(k) < 0; }));
+    }
+    function dibujar() {
+      zona.innerHTML = '';
+      orden().forEach(function (k) {
+        var x = r[k];
+        var t = K.nodo('<article class="cf-item tg-resp-item"><div class="cf-item__cab"><b></b></div></article>');
+        t.querySelector('b').textContent = x.titulo || k;
+        if (fijas.indexOf(k) < 0 && !invitado) {
+          var q = K.nodo('<button type="button" class="kit-btn kit-btn--plano op-mini cf-quitar" title="Quitar">' + K.icono('basura', 14) + '</button>');
+          q.addEventListener('click', function () {
+            K.piezas.confirmar.preguntar({ titulo: 'Quitar ' + (x.titulo || k), texto: 'Deja de salir en SOLICITUDES al guardar.', si: 'Quitar', peligro: true })
+              .then(function (si) { if (si) { delete r[k]; dibujar(); } });
+          });
+          t.querySelector('.cf-item__cab').appendChild(q);
+        }
+        var nom = entrada(x.titulo, ' maxlength="60"');
+        var ta = K.nodo('<textarea rows="10" maxlength="8000" class="tg-resp-item__txt"></textarea>');
+        ta.value = x.texto || '';
+        nom.disabled = ta.disabled = invitado;
+        nom.addEventListener('input', function () { x.titulo = nom.value; t.querySelector('b').textContent = nom.value || k; });
+        ta.addEventListener('input', function () { x.texto = ta.value; });
+        ta.addEventListener('focus', function () { ultimo = ta; });
+        t.appendChild(campo('Nombre del botón', nom, 'cf-ancho'));
+        t.appendChild(campo('Texto', ta, 'cf-ancho'));
+        zona.appendChild(t);
+      });
+    }
+    dibujar();
+    if (!invitado && marcas.length) {
+      var zm = K.nodo('<div class="cf-tipos"><span class="kit-exp__et">Marcadores</span><div class="cf-chips"></div></div>');
+      var ch = zm.querySelector('.cf-chips');
+      marcas.forEach(function (mk) {
+        var b = K.nodo('<button type="button" class="ct-marca tg-chip tg-chip--btn"></button>');
+        b.textContent = '{' + mk.m + '}'; b.title = mk.d;
+        b.addEventListener('mousedown', function (e) { e.preventDefault(); });   /* no le quita el foco al texto */
+        b.addEventListener('click', function () {
+          var ta = ultimo && ultimo.isConnected ? ultimo : zona.querySelector('textarea');
+          if (!ta) return;
+          var i = ta.selectionStart || 0, j = ta.selectionEnd || i, ins = '{' + mk.m + '}';
+          ta.value = ta.value.slice(0, i) + ins + ta.value.slice(j);
+          ta.focus(); ta.selectionStart = ta.selectionEnd = i + ins.length;
+          ta.dispatchEvent(new Event('input'));
+        });
+        ch.appendChild(b);
+      });
+      s.appendChild(zm);
+    }
+    if (invitado) return s;
+    var acc = K.nodo('<div class="ct-acc"></div>');
+    var mas = K.nodo('<button type="button" class="kit-btn kit-btn--plano">' + K.icono('mas', 16) + ' Agregar respuesta</button>');
+    mas.addEventListener('click', function () {
+      if (Object.keys(r).length >= 12) { K.aviso('Máximo 12 respuestas rápidas.', 'aviso', 4000); return; }
+      var n = 1; while (r['RESPUESTA_' + n]) n++;
+      r['RESPUESTA_' + n] = { titulo: 'Respuesta genérica', texto: 'Respuesta a la solicitud {codigo}\n\nCordial saludo, {saludo} {nombre}.\n\n\n\nAtentamente,\n\nTesorería Municipal\nAlcaldía de Flandes' };
+      dibujar();
+      var u = zona.querySelectorAll('textarea'); if (u.length) u[u.length - 1].focus();
+    });
+    var g = K.nodo('<button type="button" class="kit-btn kit-btn--marca">' + K.icono('check', 16) + ' Guardar respuestas</button>');
+    g.addEventListener('click', function () {
+      if (g.disabled) return;
+      var mal = orden().filter(function (k) { return !String(r[k].titulo || '').trim() || String(r[k].texto || '').trim().length < 20; });
+      if (mal.length) { K.aviso('Cada respuesta necesita nombre y un texto de al menos 20 caracteres.', 'aviso', 5000); return; }
+      guardar('respuestas', r, g);
+    });
+    acc.appendChild(mas); acc.appendChild(g);
     s.appendChild(acc);
     return s;
   }

@@ -11,13 +11,21 @@
    siempre ("Atendiendo a tu solicitud… Nos permitimos responder…").
    23/10: COPIAR RESPUESTA GENÉRICA (consulta por el pago antes del giro),
    armada aquí con lo que ya trae la lista; ver generica().
+   03/11: RESPUESTAS RÁPIDAS EDITABLES. Los textos llegan en la misma lista
+   (d.respuestas, CONFIG RESPUESTAS_TESORERIA, Tesoreria1103.gs) con
+   marcadores {nombre}, {contrato}… y se editan en CONFIGURACIÓN. Botones:
+   "Respuesta genérica tiempo", "Respuesta genérica descuentos" y las que
+   se agreguen. Cada una abre la vista previa (editable) para COPIAR o
+   RESPONDER con ese texto. Sin d.respuestas (CORE viejo) queda solo la de
+   tiempo con el texto de siempre: front y CORE se suben en cualquier orden.
    ============================================================ */
 (function () {
   'use strict';
 
   var K = window.KIT;
   var C = {};
-  var DATA = null, HORA = null, CARGANDO = null, COPIA = false;
+  var DATA = null, HORA = null, CARGANDO = null, COPIA = false, RESP = null;
+  var TOPE_WA = 3000;   /* FC8_responder corta en 3.000 caracteres */
   var F = { que: 'PENDIENTE', busca: '' };
 
   function O() { return window.OFICINA; }
@@ -29,6 +37,7 @@
     });
     HORA = new Date();
     COPIA = !!(d && d.copiaRespuesta);   /* 23/10 · bandera del CORE (Tesoreria1023.gs) */
+    RESP = d && d.respuestas && typeof d.respuestas === 'object' ? d.respuestas : null;   /* 03/11 · Tesoreria1103.gs */
     if (C.alSolicitudes) C.alSolicitudes(contar());
   }
 
@@ -129,11 +138,16 @@
       w.href = 'https://wa.me/57' + String(x.telefono).replace(/\D/g, '').slice(-10);
       a.appendChild(w);
     }
-    /* 23/10 · respuesta genérica de pago: solo si el CORE ya trae los datos (bandera) */
+    /* 23/10 · respuesta genérica de pago: solo si el CORE ya trae los datos (bandera).
+       03/11 · una por cada respuesta rápida de CONFIG (tiempo, descuentos y las que vengan) */
     if (COPIA && C.puede('solicitudes') && K.norm(((C.yo && C.yo()) || {}).rol || '') !== 'INVITADO') {
-      var cp = K.nodo('<button type="button" class="kit-btn kit-btn--plano tg-sol__copiar">' + K.icono('copiar', 16) + ' Copiar respuesta genérica</button>');
-      cp.addEventListener('click', function () { copiarGenerica(x); });
-      a.appendChild(cp);
+      llavesRespuesta().forEach(function (k) {
+        var r = (RESP && RESP[k]) || { titulo: 'Respuesta genérica tiempo' };
+        var cp = K.nodo('<button type="button" class="kit-btn kit-btn--plano tg-sol__copiar"></button>');
+        cp.innerHTML = K.icono(ICONO_RESP[k] || 'copiar', 16) + ' ' + K.esc(r.titulo || k);
+        cp.addEventListener('click', function () { abrirRespuesta(x, k, repintar); });
+        a.appendChild(cp);
+      });
     }
     /* 25/09 · INVITADO solo consulta: no responde (el CORE también lo niega) */
     if (pend && C.puede('solicitudes') && K.norm(((C.yo && C.yo()) || {}).rol || '') !== 'INVITADO') {
@@ -176,53 +190,109 @@
 
   function esEmpresa(n) { return /\b(S\.?\s?A\.?\s?S|LTDA|S\.\s?A\.?|E\.\s?U|SAS|FUNDACI[OÓ]N|CORPORACI[OÓ]N|ASOCIACI[OÓ]N|COOPERATIVA|CONSORCIO|UNI[OÓ]N TEMPORAL)\b/i.test(String(n || '')); }
 
-  /** { texto, cuenta, avisos[] } o { error } — sin tocar el servidor. */
-  function generica(x) {
-    var c = cuentaDe(x);
-    if (!c) return { error: 'Esta solicitud no tiene una cuenta con orden de pago: la respuesta genérica no aplica.' };
-    if (!c.orden) return { error: 'La cuenta ' + c.informe + ' todavía no tiene orden de pago: la respuesta genérica no aplica.' };
-    var fecha = fechaLarga(c.fechaOrden);
-    if (!fecha) return { error: 'La orden de pago ' + c.orden + ' no tiene fecha registrada: revísala antes de responder.' };
-    var nombre = String(x.nombre || '').trim().toUpperCase();
-    var anio = x.anio || '';
-    var avisos = (x.novedades || []).slice();
-    if (c.estado === 'PAGADA') avisos.push('La cuenta ' + c.informe + ' ya está PAGADA' + (c.detallePago ? ' (' + c.detallePago + ')' : '') + '.');
-    else if (c.estado && c.estado !== 'ORDEN DE PAGO' && c.estado !== 'EGRESO') avisos.push('La cuenta ' + c.informe + ' está en ' + c.estado + '.');
-    var conOrden = (x.cuentas || []).filter(function (k) { return k.orden && k.estado !== 'PAGADA'; });
-    if (!x.informe && conOrden.length > 1) avisos.push('Tiene ' + conOrden.length + ' cuentas con orden sin pagar: se usó la cuenta ' + c.informe + ' (orden del ' + c.fechaOrden + ').');
-    var T = [
-      'Respuesta a la solicitud ' + (x.codigo || ''),
-      '',
-      'Cordial saludo, ' + (esEmpresa(nombre) ? 'señores' : 'señor(a)') + ' ' + nombre + '.',
-      '',
-      'En atención a su consulta sobre el estado del pago del Contrato de Prestación de Servicios Profesionales No. ' + (x.contrato || '') + ' de ' + anio + ', la Tesorería Municipal le precisa lo siguiente:',
-      '',
-      '1. ESTADO DEL TRÁMITE',
-      'Su cuenta ya surtió las etapas de revisión, aprobación y causación contable, y cuenta con orden de pago emitida el ' + fecha + '. Se encuentra en la última fase del trámite: el giro de los recursos.',
-      '',
-      '2. LA ORDEN DE PAGO NO FIJA LA FECHA DEL PAGO',
-      'La emisión de la orden de pago y el mensaje con que se le notificó no constituyen una fecha de desembolso ni generan un plazo para efectuarlo. La oportunidad del giro está determinada por:',
-      '',
-      'a) Condiciones contractuales: la cláusula sexta (forma de pago) pacta pagos mensuales, mes vencido, previa presentación de los requisitos allí enumerados, entre ellos el comprobante de egreso (numeral 6). A su vez, la cláusula cuarta, en las obligaciones del Municipio, establece que el pago se efectúa en la forma y plazos estipulados (numeral 4) y una vez cumplidos los trámites administrativos y fiscales vigentes (numeral 6). El contrato no fija un término en días para el desembolso a partir de la orden de pago.',
-      'b) Condiciones presupuestales: de acuerdo con la cláusula séptima, el contrato se imputa a la vigencia fiscal ' + anio + ', con fuente en ingresos corrientes de libre destinación. La ejecución del gasto está sujeta al Programa Anual Mensualizado de Caja (PAC), que fija el monto máximo mensual de fondos disponibles para pagos, según el artículo 73 del Decreto 111 de 1996 (Estatuto Orgánico del Presupuesto), aplicable a las entidades territoriales por virtud del artículo 353 de la Constitución Política y del artículo 109 del mismo decreto.',
-      'c) Flujo de caja: la disponibilidad efectiva de recursos en la tesorería municipal.',
-      'd) Procedimientos internos de la Tesorería: la programación de los giros, que se aplica en igualdad de condiciones a todos los contratistas del municipio.',
-      '',
-      '3. EL COMPROBANTE DE EGRESO',
-      'El comprobante de egreso es un registro interno previo al giro y no se notifica al contratista. Puede verse en la aplicación CONTRATISTA, en ESTADO DE CUENTA. Como lo indica la aplicación al iniciar una solicitud a Tesorería, las consultas sobre el pago proceden una vez el egreso esté registrado.',
-      '',
-      '4. NOTIFICACIÓN DEL PAGO',
-      'Una vez se efectúe el pago, usted recibirá la notificación por WhatsApp y por correo electrónico. Si después de esa notificación el valor no se refleja en su cuenta bancaria, con gusto revisaremos el caso.',
-      '',
-      'A la fecha, su cuenta no presenta novedades ni requerimientos pendientes de su parte. Le agradecemos tener presente lo anterior.',
-      '',
-      'Atentamente,',
-      '',
-      'Tesorería Municipal',
-      'Alcaldía de Flandes'
-    ];
-    return { texto: T.join('\n'), cuenta: c, avisos: avisos };
+  /* 03/11 · el texto de siempre, solo si el CORE todavía no manda las plantillas */
+  var TIEMPO_RESPALDO = [
+    'Respuesta a la solicitud {codigo}', '',
+    'Cordial saludo, {saludo} {nombre}.', '',
+    'En atención a su consulta sobre el estado del pago del Contrato de Prestación de Servicios Profesionales No. {contrato} de {anio}, la Tesorería Municipal le precisa lo siguiente:', '',
+    '1. ESTADO DEL TRÁMITE',
+    'Su cuenta ya surtió las etapas de revisión, aprobación y causación contable, y cuenta con orden de pago emitida el {fechaOrden}. Se encuentra en la última fase del trámite: el giro de los recursos.', '',
+    '2. LA ORDEN DE PAGO NO FIJA LA FECHA DEL PAGO',
+    'La emisión de la orden de pago y el mensaje con que se le notificó no constituyen una fecha de desembolso ni generan un plazo para efectuarlo. La oportunidad del giro está determinada por:', '',
+    'a) Condiciones contractuales: la cláusula sexta (forma de pago) pacta pagos mensuales, mes vencido, previa presentación de los requisitos allí enumerados, entre ellos el comprobante de egreso (numeral 6). A su vez, la cláusula cuarta, en las obligaciones del Municipio, establece que el pago se efectúa en la forma y plazos estipulados (numeral 4) y una vez cumplidos los trámites administrativos y fiscales vigentes (numeral 6). El contrato no fija un término en días para el desembolso a partir de la orden de pago.',
+    'b) Condiciones presupuestales: de acuerdo con la cláusula séptima, el contrato se imputa a la vigencia fiscal {anio}, con fuente en ingresos corrientes de libre destinación. La ejecución del gasto está sujeta al Programa Anual Mensualizado de Caja (PAC), que fija el monto máximo mensual de fondos disponibles para pagos, según el artículo 73 del Decreto 111 de 1996 (Estatuto Orgánico del Presupuesto), aplicable a las entidades territoriales por virtud del artículo 353 de la Constitución Política y del artículo 109 del mismo decreto.',
+    'c) Flujo de caja: la disponibilidad efectiva de recursos en la tesorería municipal.',
+    'd) Procedimientos internos de la Tesorería: la programación de los giros, que se aplica en igualdad de condiciones a todos los contratistas del municipio.', '',
+    '3. EL COMPROBANTE DE EGRESO',
+    'El comprobante de egreso es un registro interno previo al giro y no se notifica al contratista. Puede verse en la aplicación CONTRATISTA, en ESTADO DE CUENTA. Como lo indica la aplicación al iniciar una solicitud a Tesorería, las consultas sobre el pago proceden una vez el egreso esté registrado.', '',
+    '4. NOTIFICACIÓN DEL PAGO',
+    'Una vez se efectúe el pago, usted recibirá la notificación por WhatsApp y por correo electrónico. Si después de esa notificación el valor no se refleja en su cuenta bancaria, con gusto revisaremos el caso.', '',
+    'A la fecha, su cuenta no presenta novedades ni requerimientos pendientes de su parte. Le agradecemos tener presente lo anterior.', '',
+    'Atentamente,', '', 'Tesorería Municipal', 'Alcaldía de Flandes'
+  ].join('\n');
+
+  var ICONO_RESP = { TIEMPO: 'reloj', DESCUENTOS: 'moneda' };
+
+  /** Las respuestas a mostrar: TIEMPO y DESCUENTOS primero, luego las que se hayan agregado. */
+  function llavesRespuesta() {
+    if (!RESP) return ['TIEMPO'];
+    var ks = Object.keys(RESP).filter(function (k) { return RESP[k] && RESP[k].texto; });
+    var orden = ['TIEMPO', 'DESCUENTOS'];
+    return orden.filter(function (k) { return ks.indexOf(k) >= 0; }).concat(ks.filter(function (k) { return orden.indexOf(k) < 0; }));
   }
+  function plantilla(k) {
+    if (RESP && RESP[k] && RESP[k].texto) return RESP[k];
+    return k === 'TIEMPO' ? { titulo: 'Respuesta genérica tiempo', texto: TIEMPO_RESPALDO } : null;
+  }
+
+  function pct(p) { return String(Math.round(Number(p) * 1000) / 1000).replace('.', ','); }
+  function esEst(a) { return K.norm(a.t) === 'EST' || /ESTAMPILLA/.test(K.norm(a.n)); }
+
+  /** Pone los marcadores {x}. Los que no tienen valor se quedan a la vista para que se noten. */
+  function llenar(texto, vals) {
+    return String(texto || '').replace(/\{(\w+)\}/g, function (m, k) { return vals[k] !== undefined && vals[k] !== '' ? String(vals[k]) : m; });
+  }
+
+  /** Los valores comunes de una solicitud y su cuenta. */
+  function valores(x, c) {
+    var nombre = String(x.nombre || '').trim().toUpperCase();
+    var v = {
+      codigo: x.codigo || '', saludo: esEmpresa(nombre) ? 'señores' : 'señor(a)', nombre: nombre,
+      contrato: x.contrato || '', anio: x.anio || '', cuenta: c ? c.informe : '', orden: c && c.orden ? c.orden : '',
+      fechaOrden: c ? fechaLarga(c.fechaOrden) : '', cobro: c && c.cobro ? K.pesos(c.cobro) : ''
+    };
+    var d = c && c.desc;
+    if (d && d.a) {
+      var tot = 0;
+      v.detalleDescuentos = d.a.map(function (a) { tot += a.v; return '• ' + a.n + ': ' + pct(a.p) + ' % sobre ' + K.pesos(a.b) + ' = ' + K.pesos(a.v); }).join('\n');
+      v.totalDescuentos = K.pesos(tot);
+      v.neto = K.pesos(d.neto || ((c.cobro || d.cobro || 0) - tot));
+      if (!v.cobro && d.cobro) v.cobro = K.pesos(d.cobro);
+      v.tramo = tramo(x, c);
+    }
+    return v;
+  }
+
+  /** "del contrato inicial ($16.000.000)" / "de la adición ($X)", según si una cuenta anterior ya pagó estampillas. */
+  function tramo(x, c) {
+    var est = (c.desc && c.desc.a || []).filter(esEst);
+    if (!est.length) return 'del contrato o de la adición';
+    var antes = (x.cuentas || []).some(function (k) { return +k.informe < +c.informe && k.desc && (k.desc.a || []).some(esEst); });
+    return (antes ? 'de la adición (' : 'del contrato inicial (') + K.pesos(est[0].b) + ')';
+  }
+
+  /** { texto, titulo, cuenta, avisos[] } o { error } — sin tocar el servidor. */
+  function armar(x, k) {
+    var pl = plantilla(k);
+    if (!pl) return { error: 'Esa respuesta ya no está en la configuración.' };
+    var c = cuentaDe(x);
+    var avisos = (x.novedades || []).slice();
+    if (k === 'TIEMPO') {
+      if (!c) return { error: 'Esta solicitud no tiene una cuenta con orden de pago: la respuesta genérica no aplica.' };
+      if (!c.orden) return { error: 'La cuenta ' + c.informe + ' todavía no tiene orden de pago: la respuesta genérica no aplica.' };
+      if (!fechaLarga(c.fechaOrden)) return { error: 'La orden de pago ' + c.orden + ' no tiene fecha registrada: revísala antes de responder.' };
+      if (c.estado === 'PAGADA') avisos.push('La cuenta ' + c.informe + ' ya está PAGADA' + (c.detallePago ? ' (' + c.detallePago + ')' : '') + '.');
+      else if (c.estado && c.estado !== 'ORDEN DE PAGO' && c.estado !== 'EGRESO') avisos.push('La cuenta ' + c.informe + ' está en ' + c.estado + '.');
+      var conOrden = (x.cuentas || []).filter(function (q) { return q.orden && q.estado !== 'PAGADA'; });
+      if (!x.informe && conOrden.length > 1) avisos.push('Tiene ' + conOrden.length + ' cuentas con orden sin pagar: se usó la cuenta ' + c.informe + ' (orden del ' + c.fechaOrden + ').');
+    } else if (k === 'DESCUENTOS') {
+      if (!c || !c.orden) return { error: (c ? 'La cuenta ' + c.informe : 'Esta solicitud') + ' todavía no tiene orden de pago: los descuentos aún no están liquidados.' };
+      if (!c.desc || !c.desc.a || !c.desc.a.length) return { error: 'La orden de pago ' + c.orden + ' no trae el detalle de descuentos (se hizo por fuera de la app): revísala antes de responder.' };
+      if (!c.desc.a.some(esEst)) {
+        var con = (x.cuentas || []).filter(function (q) { return q.desc && (q.desc.a || []).some(esEst); }).map(function (q) { return q.informe; });
+        avisos.push('La cuenta ' + c.informe + ' no lleva estampillas' + (con.length ? ' (se descontaron en la cuenta ' + con.join(' y ') + ')' : '') + '. Ajusta el texto si pregunta por ellas.');
+      }
+      var otras = (x.cuentas || []).filter(function (q) { return q.orden; });
+      if (!x.informe && otras.length > 1) avisos.push('Tiene ' + otras.length + ' cuentas con orden: se usó la cuenta ' + c.informe + ' (OP ' + c.orden + ').');
+    }
+    var texto = llenar(pl.texto, valores(x, c));
+    var faltan = (texto.match(/\{\w+\}/g) || []).filter(function (m, i, l) { return l.indexOf(m) === i; });
+    if (faltan.length) avisos.push('Quedaron sin llenar: ' + faltan.join(', ') + '. Complétalos antes de enviar.');
+    return { texto: texto, titulo: pl.titulo || k, cuenta: c, avisos: avisos };
+  }
+
+  /** Compatibilidad (ayuda y asistente): la de tiempo como antes. */
+  function generica(x) { return armar(x, 'TIEMPO'); }
 
   function alPortapapeles(texto) {
     if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(texto)['catch'](function () { return aMano(texto); });
@@ -239,35 +309,52 @@
     });
   }
 
-  function copiarGenerica(x) {
-    var g = generica(x);
+  /* 03/11 · vista previa editable: COPIAR o RESPONDER con ese texto (un toque más, nunca envía sola) */
+  function abrirRespuesta(x, k, repintar) {
+    var g = armar(x, k);
     if (g.error) { K.aviso(g.error, 'aviso', 6000); return; }
-    var copiar = function () {
-      return alPortapapeles(g.texto).then(function () { if (K.vibrar) K.vibrar(8); K.aviso('Respuesta copiada', 'ok', 2200); },
-        function () { K.aviso('No se pudo copiar en este navegador.', 'malo', 5000); });
-    };
-    if (!g.avisos.length) { copiar(); return; }
-    var cuerpo = K.nodo('<div><p class="formulario__nota">Antes de copiar, revisa:</p><ul class="tg-sol__avisos"></ul>' +
-      '<p class="formulario__nota">La respuesta dice que <b>su cuenta no presenta novedades ni requerimientos pendientes</b>. Si no es así, ajusta el texto al pegarlo.</p></div>');
+    var cuerpo = K.nodo('<div class="tg-resp"><ul class="tg-sol__avisos"></ul>' +
+      '<label class="op-campo"><span>Texto (puedes ajustarlo antes de copiar o enviar)</span><textarea rows="14"></textarea></label>' +
+      '<p class="formulario__nota tg-resp__cuenta" aria-live="polite"></p></div>');
     var ul = cuerpo.querySelector('ul');
+    if (!g.avisos.length) ul.hidden = true;
     g.avisos.forEach(function (t) { ul.appendChild(K.nodo('<li>' + K.icono('aviso', 14) + ' <span>' + K.esc(t) + '</span></li>')); });
-    var m = O().modal({
-      titulo: 'Respuesta genérica · ' + (x.codigo || ''), cuerpo: cuerpo,
-      botones: [{ texto: 'Cancelar', al: function () { m.cerrar(); } }, { texto: 'Copiar igual', icono: 'copiar', marca: true, al: function () { m.cerrar(); copiar(); } }]
-    });
+    var ta = cuerpo.querySelector('textarea');
+    ta.value = g.texto;
+    var nota = cuerpo.querySelector('.tg-resp__cuenta');
+    var pend = x.estado === 'PENDIENTE';
+    var bts = [{ texto: 'Copiar', icono: 'copiar', marca: !pend, al: copiar }];
+    if (pend) bts.push({ texto: 'Responder', icono: 'enviar', marca: true, al: enviar });
+    var m = O().modal({ titulo: g.titulo + ' · ' + (x.codigo || ''), cuerpo: cuerpo, ancha: true, botones: bts });
+    function contar() {
+      var n = ta.value.trim().length, largo = n > TOPE_WA;
+      nota.innerHTML = K.icono(largo ? 'aviso' : 'info', 13) + ' ' + K.numero(n) + ' caracteres' +
+        (largo ? ' · pasa de ' + K.numero(TOPE_WA) + ': por WhatsApp no cabe completo. Cópialo y envíalo por otro medio, o acórtalo.' : '');
+      nota.classList.toggle('formulario__nota--fuerte', largo);
+      if (m.botones[1]) m.botones[1].disabled = largo || n < 5;
+    }
+    ta.addEventListener('input', contar);
+    contar();
+    function copiar() {
+      alPortapapeles(ta.value.trim()).then(function () { if (K.vibrar) K.vibrar(8); K.aviso('Respuesta copiada', 'ok', 2200); m.cerrar(); },
+        function () { K.aviso('No se pudo copiar en este navegador.', 'malo', 5000); });
+    }
+    function enviar() { m.cerrar(); responder(x, repintar, ta.value.trim()); }
   }
 
-  function responder(x, repintar) {
+  function responder(x, repintar, previo) {
     var cuerpo = K.nodo('<div><p class="formulario__nota">A <b>' + K.esc(O().nombre(x.nombre)) + '</b> le llega por WhatsApp:</p>' +
       '<blockquote class="tg-sol__txt">Atendiendo a tu solicitud: ' + K.esc(x.solicitud) + '</blockquote>' +
       '<label class="op-campo"><span>Nos permitimos responder</span><textarea rows="5" maxlength="3000"></textarea></label></div>');
     var ta = cuerpo.querySelector('textarea');
+    if (previo) { ta.value = previo; ta.rows = 12; }   /* 03/11 · viene de una respuesta rápida */
     var m = O().modal({
-      titulo: 'Responder ' + x.codigo, cuerpo: cuerpo,
+      titulo: 'Responder ' + x.codigo, cuerpo: cuerpo, ancha: !!previo,
       botones: [{ texto: 'Cancelar', al: function () { m.cerrar(); } }, { texto: 'Responder', icono: 'enviar', marca: true, al: enviar }]
     });
     setTimeout(function () { ta.focus(); }, 200);
     function enviar() {
+      if (m.botones[1].disabled) return;   /* escudo desde el primer toque */
       var txt = ta.value.trim();
       if (txt.length < 5) { K.aviso('Escribe la respuesta.', 'aviso', 3000); return; }
       m.botones[1].disabled = true;
@@ -291,6 +378,9 @@
     /* 24/10 · el asistente lleva a la lista con la pastilla ya puesta */
     filtrar: function (f) { F.que = f && f.que !== undefined ? f.que : 'PENDIENTE'; F.busca = ''; },
     _generica: generica,
+    _armar: armar, _llaves: llavesRespuesta,
+    /* 03/11 · Configuración guarda los textos: se parchan aquí sin volver a pedir la lista */
+    ponerRespuestas: function (r) { if (r && typeof r === 'object') RESP = r; },
     _datos: function () { return DATA; }, _filtradas: function () { return (DATA || []).filter(function (x) { return pasa(x); }); }
   };
 }());
