@@ -403,6 +403,12 @@
     K.aviso('Este egreso se hizo con la app anterior: no tiene PDF.', 'aviso', 4000);
   }
 
+  /** 05/11 · El visor con un PDF que ya se está trayendo (la misma promesa de la descarga: un solo viaje). */
+  function verPromesa(titulo, trae) {
+    K.piezas.visor.abrir([{ titulo: titulo, tipo: 'pdf',
+      cargar: function () { return trae.then(function (d) { return { bytes: d.bytes, mime: 'application/pdf', tipo: 'pdf', nombre: d.nombre }; }); } }]);
+  }
+
   function bytesDe(b64) {
     var bin = atob(b64), n = bin.length, u = new Uint8Array(n);
     for (var i = 0; i < n; i++) u[i] = bin.charCodeAt(i);
@@ -765,6 +771,17 @@
           var nueva = emitidos().filter(function (x) { return x.fila === c.fila; })[0];
           if (nueva && bytes) nueva._pdf = { bytes: bytes, nombre: res.nombre };
           if (bytes) bajarPdf(bytes, res.nombre);
+          /* 05/11 · desde el 28/10 (sinPdf) el PDF ya no llegaba en la respuesta y se perdió la descarga
+             automática: se trae UNA vez por su boleto y con esos mismos bytes se descarga y se ve. */
+          var trae = (!bytes && res.tEgreso) ? O().docPorBoleto(res.tEgreso, res.nombre) : null;
+          if (trae) {
+            trae.then(function (doc) {
+              if (nueva) nueva._pdf = { bytes: doc.bytes, nombre: doc.nombre || res.nombre };
+              bajarPdf(doc.bytes, doc.nombre || res.nombre);
+            })['catch'](function () {
+              K.aviso('El egreso ' + numero + ' quedó creado, pero no se pudo descargar solo. Ábrelo en EGRESOS EMITIDOS y usa Descargar.', 'aviso', 9000);
+            });
+          }
           var malos = [];
           if (res.grupo && !res.grupo.ok) malos.push('al grupo de Tesorería (' + (res.grupo.error || 'no salió') + ')');
           if (malos.length) K.aviso('El egreso quedó creado, pero no se pudo avisar ' + malos.join(' ni ') + '.', 'aviso', 9000);
@@ -773,6 +790,7 @@
           /* 05/10 · se queda en la lista de donde vino (la bandeja ya llegó con la respuesta: sin otro viaje) */
           C.irA(rehacer ? 'emitidos' : 'pendientes');
           setTimeout(function () {
+            if (trae) { verPromesa('Egreso ' + numero, trae); return; }
             verEgreso(nueva || { egreso: numero, informe: c.informe, contrato: c.contrato, tEgreso: res.tEgreso,
                                  _pdf: bytes ? { bytes: bytes, nombre: res.nombre } : null });
           }, 450);
