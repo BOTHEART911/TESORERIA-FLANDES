@@ -250,7 +250,15 @@
   /* 27/10 · Fuente(s) de FINANCIACIÓN que Contabilidad escogió en la orden de pago (presupuesto).
      No es la FUENTE DE DESTINACIÓN que escoge Tesorería al girar (banco y cuenta). Órdenes viejas: nada. */
   /* 30/10 · con varias fuentes sale el valor de cada una (c.fuentesValores, mismo orden) */
-  function ffValor(c, i) { var v = (c.fuentesValores || [])[i]; return v > 0 ? pesos(v) : ''; }
+  /* 18/11 · el valor de cada fuente puede traer centavos (2.592.877,57): se muestran tal cual */
+  function pesosDec(v) {
+    var n = Math.abs(Number(v) || 0), ent = Math.floor(n), cent = Math.round((n - ent) * 100);
+    if (cent === 100) { ent++; cent = 0; }
+    var t = String(ent), out = '';
+    while (t.length > 3) { out = '.' + t.slice(-3) + out; t = t.slice(0, -3); }
+    return '$ ' + t + out + (cent ? ',' + ('0' + cent).slice(-2) : '');
+  }
+  function ffValor(c, i) { var v = (c.fuentesValores || [])[i]; return v > 0 ? pesosDec(v) : ''; }
   function fuentesFinNodo(c) {
     var l = c.fuentesFin || [];
     if (!l.length) return null;
