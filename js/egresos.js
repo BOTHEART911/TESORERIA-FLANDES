@@ -328,6 +328,7 @@
     function pintar() {
       repintarPastillas();
       var filas = pendientes().filter(function (c) { return pasa(c); });
+      if (K.piezas.prioridad) filas = K.piezas.prioridad.primero(filas);   /* 19/11 · cuenta prioritaria primero (kit/pastillas.js) */
       var tot = pendientes().length;
       var suma = filas.reduce(function (s, c) { return s + (Number(c.neto) || 0); }, 0);
       conteo.innerHTML = '<b>' + K.numero(filas.length) + '</b> ' + (filas.length === 1 ? 'cuenta' : 'cuentas') +
@@ -846,6 +847,7 @@
         O().marcar(zQ, F.eque);
       }
       var filas = todos.filter(function (c) { return c.error ? !F.eque : pasaE(c); });
+      if (K.piezas.prioridad) filas = K.piezas.prioridad.primero(filas);   /* 19/11 · cuenta prioritaria primero (kit/pastillas.js) */
       var suma = filas.reduce(function (s, c) { return s + (c.datos ? Number(c.datos.total) || 0 : Number(c.neto) || 0); }, 0);
       conteo.innerHTML = '<b>' + K.numero(filas.length) + '</b> ' + (filas.length === 1 ? 'egreso' : 'egresos') +
         (filas.length ? ' · ' + K.esc(pesos(suma)) + ' por pagar' : '') +
