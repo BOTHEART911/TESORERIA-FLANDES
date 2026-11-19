@@ -363,7 +363,7 @@
       '<div><dt>Secretaría</dt><dd>' + K.esc(titulo(c.sec) || '—') + '</dd></div>' +
       '<div><dt>Orden de pago</dt><dd>' + K.esc(c.orden || '—') + '</dd></div>' +
       '<div><dt>Fecha de la orden</dt><dd' + (dias !== null && dias >= 5 ? ' class="rv-t__tarde"' : '') + '>' + K.esc(c.fechaOrden || '—') +
-      (dias !== null ? ' <small>· hace ' + dias + (dias === 1 ? ' día' : ' días') + '</small>' : '') + '</dd></div>' +
+      (K.piezas.prioridad && K.piezas.prioridad.hace ? K.piezas.prioridad.hace(c, c.fechaOrden, { sinPeriodo: true }) : (dias !== null ? ' <small>· hace ' + dias + (dias === 1 ? ' día' : ' días') + '</small>' : '')) + '</dd></div>' +
       '<div><dt>Cobra</dt><dd>' + K.esc(pesos(c.cobro)) + '</dd></div>' +
       '<div><dt>Banco del contratista</dt><dd>' + K.esc(c.banco || '—') + (c.numeroCuenta ? ' <small>' + K.esc(c.tipoCuenta || '') + ' ' + K.esc(c.numeroCuenta) + '</small>' : '') + '</dd></div>' +
       '</dl>'));
